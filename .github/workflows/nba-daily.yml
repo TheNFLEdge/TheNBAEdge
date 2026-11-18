@@ -1,0 +1,57 @@
+name: NBA Daily Update
+
+on:
+  schedule:
+    - cron: '41 8 * * *'
+    - cron: '41 9 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nba-daily-publication
+  cancel-in-progress: false
+
+jobs:
+  daily-update:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Update NBA projections and archives
+        env:
+          NBA_SCHEDULE: ${{ github.event.schedule }}
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          PG_PI_X: ${{ secrets.PG_PI_X }}
+          PG_PI7: ${{ secrets.PG_PI7 }}
+          PG_PPI5: ${{ secrets.PG_PPI5 }}
+          PG_PI2: ${{ secrets.PG_PI2 }}
+          PG_PI0: ${{ secrets.PG_PI0 }}
+          PG_MD: ${{ secrets.PG_MD }}
+        run: npm run daily
+
+      - name: Commit and push publication to main
+        uses: stefanzweifel/git-auto-commit-action@v7
+        with:
+          commit_message: |
+            Automated NBA daily update
+
+            Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+          file_pattern: '.'

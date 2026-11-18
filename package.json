@@ -1,0 +1,15 @@
+{
+  "name": "thenbaedge",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "daily": "node nba-daily.js",
+    "test": "node --test tests/*.test.js"
+  },
+  "devDependencies": {
+    "parse5": "^7.3.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
