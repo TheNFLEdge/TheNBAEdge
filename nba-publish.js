@@ -67,11 +67,34 @@ function card(game) {
 }
 
 function renderIssue(template, issue, prefix = '') {
-    const cards = issue.games.map(card).join('\n');
+    let cards = issue.games.map(card);
+    const definitions = /<!-- SPONSOR-DEFINITIONS-START -->([\s\S]*?)<!-- SPONSOR-DEFINITIONS-END -->/;
+    const match = template.match(definitions);
+    if (match) {
+        const sponsors = [...match[1].matchAll(/<!-- SPONSOR-START -->\s*([\s\S]*?)\s*<!-- SPONSOR-END -->/g)]
+            .map(item => item[1]);
+        if (sponsors.length !== 3 || !template.includes('<!-- GAME-CARDS -->')) {
+            throw new Error('Invalid NBA sponsor definitions or missing game cards marker');
+        }
+        template = template.replace(definitions, '');
+        if (cards.length) {
+            const insertions = new Map();
+            sponsors.forEach((sponsor, index) => {
+                const position = cards.length === 1 ? 1 :
+                    Math.max(1, Math.min(cards.length - 1, Math.round((index + 1) * cards.length / 4)));
+                if (!insertions.has(position)) insertions.set(position, []);
+                insertions.get(position).push(sponsor);
+            });
+            cards = cards.flatMap((game, index) => [game, ...(insertions.get(index + 1) || [])]);
+        }
+    } else if (template.includes('<!-- SPONSOR-DEFINITIONS-START -->') || template.includes('<!-- SPONSOR-DEFINITIONS-END -->')) {
+        throw new Error('Invalid NBA sponsor definitions');
+    }
     return template.replaceAll('{{ROOT}}', prefix)
         .replaceAll('{{DATE}}', escapeHtml(issue.date))
         .replaceAll('{{ISSUE}}', `Issue ${issue.number} &middot; ${issue.season}&ndash;${String(issue.season + 1).slice(-2)} season`)
-        .replace('<!-- GAME-CARDS -->', cards || '<p class="game-card">No upcoming NBA games found for this date.</p>');
+        .replace('<!-- GAME-CARDS -->', cards.join('\n') || '<p class="game-card">No upcoming NBA games found for this date.</p>')
+        .replaceAll('{{ROOT}}', prefix);
 }
 
 function renderSeasonIndex(season, issues) {

@@ -33,6 +33,7 @@ function temporaryRoot(t) {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nba-edge-test-'));
     t.after(() => fs.rmSync(root, { recursive: true, force: true }));
     fs.copyFileSync(path.join(__dirname, '..', 'nba-template.htm'), path.join(root, 'nba-template.htm'));
+    fs.copyFileSync(path.join(__dirname, '..', 'nba-unavailable.html'), path.join(root, 'nba-unavailable.html'));
     return root;
 }
 
@@ -78,10 +79,14 @@ test('ESPN lines are interpreted as home handicap and missing data is not zero',
     assert.deepEqual(data.parseMatchup(e).odds, { spread: 0, total: 0, source: 'ESPN' });
 });
 
-test('issue template retains all three ads and resolves artwork for current and archived issues', () => {
+test('issue template intersperses all three ads and resolves artwork for current and archived issues', () => {
     const root = path.join(__dirname, '..');
     const template = fs.readFileSync(path.join(root, 'nba-template.htm'), 'utf8');
-    const issue = { date: '2026-11-15', number: 1, season: 2026, games: [] };
+    const game = {
+        id: '1', away: { name: 'Away', abbreviation: 'A' }, home: { name: 'Home', abbreviation: 'H' },
+        odds: { spread: null, total: null }, projection: null, final: null
+    };
+    const issue = { date: '2026-11-15', number: 1, season: 2026, games: [game, { ...game, id: '2' }] };
     for (const prefix of ['', '../../']) {
         const html = publish.renderIssue(template, issue, prefix);
         assert.match(html, /Liberty Mutual advertisement/);
@@ -94,6 +99,42 @@ test('issue template retains all three ads and resolves artwork for current and 
         assert.ok(html.includes(`src="${prefix}nba-viewport.js" data-date="2026-11-15" data-fallback="${prefix}nba-unavailable.html"`));
         assert.ok(!html.includes('{{ROOT}}'));
     }
+});
+
+test('ads are distributed between game cards for varying slate sizes', () => {
+    const template = fs.readFileSync(path.join(__dirname, '..', 'nba-template.htm'), 'utf8');
+    const game = {
+        away: { name: 'Away', abbreviation: 'A' }, home: { name: 'Home', abbreviation: 'H' },
+        odds: { spread: null, total: null }, projection: null, final: null
+    };
+    for (const count of [1, 2, 3, 5, 11, 12, 13, 15]) {
+        const games = Array.from({ length: count }, (_, index) => ({ ...game, id: String(index + 1) }));
+        const html = publish.renderIssue(template, { date: '2026-11-15', number: 1, season: 2026, games });
+        const items = [...html.matchAll(/class="game-card" data-game-id="(\d+)"|class="sponsor sponsor-(liberty|property|feesh)"/g)]
+            .map(match => match[1] ? `game-${match[1]}` : match[2]);
+        assert.deepEqual(items.filter(item => item.startsWith('game-')), games.map(item => `game-${item.id}`));
+        assert.deepEqual(items.filter(item => !item.startsWith('game-')), ['liberty', 'property', 'feesh']);
+        assert.equal(items[0], 'game-1');
+        if (count > 1) assert.equal(items.at(-1), `game-${count}`);
+        if (count === 2) assert.equal(items[1], 'liberty');
+        if (count === 12) {
+            assert.deepEqual(items.map((item, index) => !item.startsWith('game-') ? index : -1).filter(index => index >= 0), [3, 7, 11]);
+        }
+        assert.doesNotMatch(html, /SPONSOR-(DEFINITIONS|START|END)/);
+    }
+    assert.throws(() => publish.renderIssue(template.replace('<!-- SPONSOR-END -->', ''), {
+        date: '2026-11-15', number: 1, season: 2026, games: [game]
+    }), /Invalid NBA sponsor/);
+});
+
+test('legacy issue templates retain their original sponsor layout', () => {
+    const template = '<!-- GAME-CARDS --><section>Original sponsors</section>';
+    const game = {
+        id: '1', away: { name: 'Away', abbreviation: 'A' }, home: { name: 'Home', abbreviation: 'H' },
+        odds: { spread: null, total: null }, projection: null, final: null
+    };
+    assert.match(publish.renderIssue(template, { date: '2026-11-15', number: 1, season: 2026, games: [game] }),
+        /<\/article>\s*<section>Original sponsors<\/section>/);
 });
 
 test('game cards present matchup, home line and scores without exposing model inputs or line source', () => {
@@ -318,8 +359,21 @@ test('no-game days update the viewport without allocating an issue', async t => 
     const root = temporaryRoot(t);
     const provider = { scoreboard: async () => [], finalScore: async () => null };
     await daily.run({ root, now: new Date('2026-07-01T08:41:00Z'), provider, env: {} });
-    assert.match(fs.readFileSync(path.join(root, 'NBATMP.htm'), 'utf8'), /No upcoming NBA games/);
+    const html = fs.readFileSync(path.join(root, 'NBATMP.htm'), 'utf8');
+    assert.match(html, /Picks unavailable/);
+    assert.match(html, /There are no NBA games scheduled for today/);
+    assert.match(html, /src="nba-viewport\.js" data-date="2026-07-01" data-fallback="nba-unavailable\.html"/);
+    assert.doesNotMatch(html, /technical difficulties|sponsor sponsor-/);
     assert.ok(!fs.existsSync(path.join(root, 'nba_rotation_state.json')));
+});
+
+test('a late manual run distinguishes started games from a day without scheduled games', async t => {
+    const root = temporaryRoot(t);
+    const provider = { scoreboard: async () => [event('1', '2026-11-16T05:00:00Z', true)] };
+    await daily.run({ root, now: new Date('2026-11-16T06:30:00Z'), provider, env: {} });
+    const html = fs.readFileSync(path.join(root, 'NBATMP.htm'), 'utf8');
+    assert.match(html, /There are no upcoming NBA games remaining today/);
+    assert.doesNotMatch(html, /no NBA games scheduled/i);
 });
 
 test('configured settings are recorded without values and preserved on rerun', async t => {
