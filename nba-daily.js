@@ -126,10 +126,12 @@ async function run({ root = ROOT, now = new Date(), provider = data, env = proce
 
     if (!state.issues.some(issue => issue.date === today)) {
         const events = await provider.scoreboard(today);
-        const games = events.filter(event => {
+        const scheduled = events.filter(event => {
+            return [2, 3].includes(event.season?.type) && easternDate(new Date(event.date)) === today;
+        });
+        const games = scheduled.filter(event => {
             const game = data.competition(event);
-            return [2, 3].includes(event.season?.type) && easternDate(new Date(event.date)) === today &&
-                game.status?.type?.state === 'pre' && Date.parse(event.date) > now.getTime();
+            return game.status?.type?.state === 'pre' && Date.parse(event.date) > now.getTime();
         }).map(data.parseMatchup);
         const ids = new Set(games.map(game => game.id));
         if (ids.size !== games.length) throw new Error('Duplicate ESPN events in scoreboard');
@@ -160,8 +162,16 @@ async function run({ root = ROOT, now = new Date(), provider = data, env = proce
             changed = true;
             console.log(`Generated ${publish.issueName(issue)} with ${games.length} games`);
         } else {
-            const html = publish.renderIssue(template, { date: today, season, number: 0, games: [] });
-            outputs.set(path.join(root, VIEWPORT), html.replace('Issue 0 &middot; ', ''));
+            const unavailable = fs.readFileSync(path.join(root, 'nba-unavailable.html'), 'utf8');
+            const message = scheduled.length ? 'There are no upcoming NBA games remaining today.' :
+                'There are no NBA games scheduled for today.';
+            let html = unavailable.replace(/<!-- UNAVAILABLE-REASON-START -->[\s\S]*?<!-- UNAVAILABLE-REASON-END -->/,
+                `<p class="intro">${message}</p>`);
+            if (html === unavailable) throw new Error('Missing NBA unavailable reason marker');
+            if (!html.includes('<!-- VIEWPORT-DATE -->')) throw new Error('Missing NBA unavailable viewport date marker');
+            html = html.replace('<!-- VIEWPORT-DATE -->',
+                `<script src="nba-viewport.js" data-date="${today}" data-fallback="nba-unavailable.html"></script>`);
+            outputs.set(path.join(root, VIEWPORT), html);
             console.log(`No upcoming regular-season or postseason games on ${today}`);
         }
     } else {
