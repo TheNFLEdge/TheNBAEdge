@@ -46,6 +46,10 @@ test('model uses NFL buckets, quarter averages, rounding and NBA tie resolution'
     assert.equal(model.roundEven(3.5), 4);
     assert.equal(model.projectMatchup({ gp: 3 }, opponent, model.modelConfig({})), null);
     assert.throws(() => model.modelConfig({ PG_MD: 'nope' }), /Invalid PG_MD/);
+    assert.equal(model.modelConfig({}).usesFallback, true);
+    const configured = { PG_PI0: '3', PG_PI7: '3', PG_PPI5: '3', PG_PI2: '3', PG_PI_X: '3', PG_MD: '3' };
+    assert.equal(model.modelConfig(configured).usesFallback, false);
+    assert.equal(model.modelConfig({ ...configured, PG_PI2: '' }).usesFallback, true);
 });
 
 test('rolling history takes last four distinct final games before cutoff', () => {
@@ -90,6 +94,42 @@ test('issue template retains all three ads and resolves artwork for current and 
         assert.ok(html.includes(`src="${prefix}nba-viewport.js" data-date="2026-11-15" data-fallback="${prefix}nba-unavailable.html"`));
         assert.ok(!html.includes('{{ROOT}}'));
     }
+});
+
+test('game cards present matchup, home line and scores without exposing model inputs or line source', () => {
+    const root = path.join(__dirname, '..');
+    const template = fs.readFileSync(path.join(root, 'nba-template.htm'), 'utf8');
+    const game = {
+        id: '1', away: { name: 'Chicago Bulls', abbreviation: 'CHI', record: '10-5', stats: { gp: 4, pf_sum: 440, pa_sum: 420 } },
+        home: { name: 'Brooklyn Nets', abbreviation: 'BKN', record: '8-7', stats: { gp: 4, pf_sum: 420, pa_sum: 440 } },
+        odds: { spread: -2.5, total: 220.5, source: 'Example Book' },
+        projection: { away: 123, home: 95 }, final: null
+    };
+    const issue = { date: '2026-11-18', number: 1, season: 2026, games: [game] };
+    const render = () => publish.renderIssue(template, issue);
+    let html = render();
+    assert.match(html, /Chicago Bulls at Brooklyn Nets/);
+    assert.match(html, /BKN -2\.5 &nbsp; \| &nbsp; O\/U: 220\.5/);
+    assert.match(html, /The \(10-5\) Chicago Bulls head into \(8-7\) Brooklyn Nets, where the home team is installed as a 2\.5-point favorite/);
+    assert.match(html, /Projected Score:<\/strong> CHI 123 - BKN 95/);
+    assert.match(html, /Final Score:<\/strong> TBD/);
+    assert.doesNotMatch(html, /Our computer projects|Example Book|Game 1:|last four|440 scored|<table>/i);
+    game.odds.spread = 3.5;
+    html = render();
+    assert.match(html, /BKN \+3\.5/);
+    assert.match(html, /home team is a 3\.5-point underdog/);
+    game.odds = { spread: 0, total: null, source: null };
+    game.projection = null;
+    game.final = { away: 100, home: 110 };
+    html = render();
+    assert.match(html, /BKN PK &nbsp; \| &nbsp; O\/U: Unavailable/);
+    assert.match(html, /pick&#39;em matchup/);
+    assert.match(html, /Projected Score:<\/strong> TBD/);
+    assert.match(html, /Final Score:<\/strong> CHI 100 - BKN 110/);
+    game.odds.spread = null;
+    game.away.record = null;
+    game.home.record = null;
+    assert.match(render(), /The Chicago Bulls head into Brooklyn Nets\./);
 });
 
 test('only an outdated daily viewport routes to the fallback on Eastern date boundaries', () => {
@@ -165,7 +205,7 @@ test('record summaries cite the original tables and distinguish pilot results', 
     assert.match(hero, /href="about\.html"/);
     const about = fs.readFileSync(path.join(root, 'about.html'), 'utf8');
     assert.match(about, /Chris &ldquo;Green Bomber&rdquo; Campbell/);
-    assert.match(about, /calculation error/);
+    assert.match(about, /PanaGeoTech formula/);
 });
 
 test('public classic archives contain only safe links, local assets, and preserved scores', () => {
@@ -210,6 +250,19 @@ test('grading treats real and projected pushes as pushes and excludes unavailabl
     assert.deepEqual(publish.gameResults(game), { winner: null, ats: null, total: null });
 });
 
+test('season records distinguish fallback, configured and unknown issue settings', () => {
+    const game = { projection: { away: 100, home: 110 }, final: { away: 105, home: 110 }, odds: { spread: -5, total: 215 } };
+    const issue = (number, source) => ({ season: 2026, number, date: `2026-11-${14 + number}`, archived: true, games: [game], model_source: source });
+    const html = publish.renderSeasonIndex(2026, [issue(1, 'fallback'), issue(2, 'configured'), issue(3)]);
+    assert.match(html, /Issue 1\)<\/a><\/td><td>1-0-0\*<\/td>/);
+    assert.match(html, /Issue 2\)<\/a><\/td><td>1-0-0<\/td>/);
+    assert.match(html, /Issue 3\)<\/a><\/td><td>1-0-0\?<\/td>/);
+    assert.match(html, /Season total<\/th><th>3-0-0\*\?<\/th>/);
+    assert.doesNotMatch(html, /fallback model settings|Model settings were not recorded/);
+    const configuredOnly = publish.renderSeasonIndex(2026, [issue(2, 'configured')]);
+    assert.doesNotMatch(configuredOnly, /fallback model settings|Model settings were not recorded/);
+});
+
 test('Eastern dates and season rollover honor daylight saving time', () => {
     assert.equal(daily.easternDate(new Date('2026-11-01T04:30:00Z')), '2026-11-01');
     assert.equal(daily.easternParts(new Date('2026-11-01T09:41:00Z')).hour, '04');
@@ -248,12 +301,15 @@ test('daily rotation is idempotent and archives postponed games independently', 
     const state = daily.readState(root);
     assert.equal(state.issues.length, 3);
     assert.deepEqual(state.issues.map(issue => issue.archived), [true, true, false]);
+    assert.deepEqual(state.issues.map(issue => issue.model_source), ['fallback', 'fallback', 'fallback']);
     const archive = fs.readFileSync(path.join(root, 'archives', '2026', 'nba26-001.html'), 'utf8');
     assert.match(archive, /A 100 - H 110/);
     assert.match(archive, /href="\.\.\/\.\.\/nba\.css"/);
     const index = fs.readFileSync(path.join(root, 'archives', '2026', 'index.html'), 'utf8');
     assert.match(index, /nba26-001\.html/);
     assert.match(index, /nba26-002\.html/);
+    assert.match(index, /Season total<\/th><th>[^<]*\*/);
+    assert.doesNotMatch(index, /fallback model settings/);
     fs.appendFileSync(path.join(root, 'nba26-001.html'), 'tampering');
     assert.throws(() => daily.readState(root), /checksum mismatch/);
 });
@@ -264,6 +320,24 @@ test('no-game days update the viewport without allocating an issue', async t => 
     await daily.run({ root, now: new Date('2026-07-01T08:41:00Z'), provider, env: {} });
     assert.match(fs.readFileSync(path.join(root, 'NBATMP.htm'), 'utf8'), /No upcoming NBA games/);
     assert.ok(!fs.existsSync(path.join(root, 'nba_rotation_state.json')));
+});
+
+test('configured settings are recorded without values and preserved on rerun', async t => {
+    const root = temporaryRoot(t);
+    const stats = { gp: 4, wins: 2, losses: 2, pf_sum: 440, pa_sum: 440 };
+    const provider = {
+        scoreboard: async date => [event(date, `${date}T23:00:00Z`, false)],
+        teamStats: async () => ({ ...stats }),
+        mergeOdds: async () => {}
+    };
+    const env = { PG_PI0: '3', PG_PI7: '3', PG_PPI5: '3', PG_PI2: '3', PG_PI_X: '3', PG_MD: '3' };
+    const now = new Date('2026-11-15T09:41:00Z');
+    await daily.run({ root, now, provider, env });
+    const first = daily.readState(root).issues[0];
+    assert.equal(first.model_source, 'configured');
+    assert.doesNotMatch(fs.readFileSync(path.join(root, 'nba_rotation_state.json'), 'utf8'), /PG_PI0|PG_MD/);
+    await daily.run({ root, now, provider, env: {} });
+    assert.equal(daily.readState(root).issues[0].model_source, 'configured');
 });
 
 test('season rollover archives the previous season and restarts issue numbering', async t => {

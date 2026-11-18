@@ -54,7 +54,8 @@ function readState(root) {
         if (!Number.isInteger(issue.season) || issue.season < 2000 || issue.season > 9999 ||
             !Number.isInteger(issue.number) || issue.number < 1 || !/^\d{4}-\d{2}-\d{2}$/.test(issue.date) ||
             seasonStart(issue.date) !== issue.season || !Array.isArray(issue.games) || !issue.games.length ||
-            typeof issue.archived !== 'boolean' || typeof issue.template !== 'string') throw new Error('Invalid NBA issue in rotation state');
+            typeof issue.archived !== 'boolean' || typeof issue.template !== 'string' ||
+            (issue.model_source !== undefined && !['fallback', 'configured'].includes(issue.model_source))) throw new Error('Invalid NBA issue in rotation state');
         const key = `${issue.season}-${issue.number}`;
         if (seen.has(key) || dates.has(issue.date)) throw new Error(`Duplicate NBA issue ${key} or date ${issue.date}`);
         seen.add(key);
@@ -133,6 +134,7 @@ async function run({ root = ROOT, now = new Date(), provider = data, env = proce
         const ids = new Set(games.map(game => game.id));
         if (ids.size !== games.length) throw new Error('Duplicate ESPN events in scoreboard');
         if (games.length) {
+            const config = modelConfig(env);
             const teams = new Map(games.flatMap(game => [game.away, game.home]).map(team => [team.id, team]));
             await Promise.all([...teams.values()].map(async team => {
                 team.stats = await provider.teamStats(team.id, season, now.getTime());
@@ -140,12 +142,12 @@ async function run({ root = ROOT, now = new Date(), provider = data, env = proce
             for (const game of games) {
                 game.away.stats = teams.get(game.away.id).stats;
                 game.home.stats = teams.get(game.home.id).stats;
-                game.projection = projectMatchup(game.away.stats, game.home.stats, modelConfig(env));
+                game.projection = projectMatchup(game.away.stats, game.home.stats, config);
             }
             await provider.mergeOdds(games, env.ODDS_API_KEY);
             const previous = state.issues.filter(issue => issue.season === season);
             const number = Math.max(0, ...previous.map(issue => issue.number)) + 1;
-            const issue = { season, number, date: today, games, archived: false, template };
+            const issue = { season, number, date: today, games, archived: false, template, model_source: config.usesFallback ? 'fallback' : 'configured' };
             const html = publish.renderIssue(template, issue);
             issue.canonical_hash = publish.hash(html);
             const canonical = path.join(root, publish.issueName(issue));
