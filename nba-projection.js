@@ -11,7 +11,8 @@ function modelConfig(env = process.env) {
     }
     const margin = env.PG_MD ? Number(env.PG_MD) : 2;
     if (!Number.isFinite(margin) || margin < 0) throw new Error('Invalid PG_MD');
-    return { multipliers, margin };
+    const usesFallback = [...Object.values(keys), 'PG_MD'].some(key => !env[key]);
+    return { multipliers, margin, usesFallback };
 }
 
 function bucket(wins, games) {
