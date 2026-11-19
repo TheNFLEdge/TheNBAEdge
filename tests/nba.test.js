@@ -313,8 +313,25 @@ test('Greggy Feesh Thanksgiving sponsor matches the NFL seasonal banner', () => 
     assert.match(seasonal, /height:clamp\(210px, 27vw, 250px\)/);
     assert.match(renderDate('2026-11-30'), /gfeesh-thanksgiving-ad\.jpg/);
     const regular = renderDate('2026-12-01');
-    assert.match(regular, /gfish-promo-ad\.jpg/);
+    const regularSponsor = regular.match(/<article class="sponsor sponsor-feesh"[\s\S]*?<\/article>/)?.[0];
+    assert.ok(regularSponsor);
+    assert.match(regularSponsor, /gfish-promo-ad\.jpg/);
     assert.doesNotMatch(regular, /Pumpkin Pie \(feat\. G Pan\)/);
+    assert.match(regularSponsor, /Tired of swimming in the same old waves\?/);
+    assert.match(regularSponsor, /position:relative;top:12px;z-index:1;margin:0 0 -5px/);
+    assert.match(regularSponsor, /Catch the latest/);
+    assert.match(regularSponsor, /FRESH FEESH/);
+    assert.match(regularSponsor, /Greggy FEESH and the Phlops/);
+    assert.match(regularSponsor, /href="https:\/\/open\.spotify\.com\/artist\/6fa6DV6wh6WscR3R7fWAyI"/);
+    assert.match(regularSponsor, /max-height:250px/);
+    assert.match(regularSponsor, /position:relative;width:100%;margin:0 auto/);
+    assert.match(regularSponsor, /width:min\(100%, 500px\);height:auto/);
+    assert.match(regularSponsor, /top:75%/);
+    assert.match(regularSponsor, /background:rgba\(15,11,34,\.55\)/);
+    assert.match(regularSponsor, /position:relative;top:-20px;padding:8px;background:rgba\(15,11,34,\.9\);color:#fff86a/);
+    assert.match(regularSponsor, /Listen to Greggy FEESH and the Phlops on <strong style="color:#1db954;">Spotify<\/strong> &rarr;/);
+    assert.match(regularSponsor, /style="padding:0;background:#fff;border-color:#fff"/);
+    assert.doesNotMatch(regularSponsor, /sponsor-label|Advertisement/);
 });
 
 test('overnight score passes update the current viewport without altering predictions or creating a new issue', async t => {

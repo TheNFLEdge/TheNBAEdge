@@ -123,13 +123,25 @@ function renderIssue(template, issue, prefix = '') {
         <h2 style="color:#ffd700;">What's better than Thanksgiving, turkey &amp; football?</h2>
         <p style="margin:0;"><strong style="color:#8cff00;">FRESH FEESH&mdash;with a slice of Pumpkin Pie!</strong> Pre-order the latest releases from <strong style="color:#e46aff;">Greggy FEESH and the Phlops</strong>.</p>
     </div>`
-        : `<p class="sponsor-label">Advertisement</p><a href="https://open.spotify.com/artist/6fa6DV6wh6WscR3R7fWAyI" target="_blank" rel="noopener noreferrer"><img src="${feeshAdPath}" alt="Greggy Feesh and the Phlops" loading="lazy"><span>Check out the latest Fresh Feesh music on Spotify &rarr; (opens in a new tab)</span></a>`;
+        : `<a href="https://open.spotify.com/artist/6fa6DV6wh6WscR3R7fWAyI" target="_blank" rel="noopener noreferrer" style="background:#fff;color:#111;text-align:center;padding:16px 0;">
+        <div style="position:relative;width:100%;margin:0 auto;">
+            <p style="position:relative;top:12px;z-index:1;margin:0 0 -5px;padding:5px 8px;background:rgba(15,11,34,.55);color:#fff86a;font-size:clamp(11px, 2.7vw, 15px);font-weight:800;line-height:1.25;text-shadow:0 1px 3px #000,1px 1px 2px #000;">Tired of swimming in the same old waves?</p>
+            <img src="${feeshAdPath}" alt="Greggy FEESH and the Phlops" loading="lazy" style="display:block;width:min(100%, 500px);height:auto;max-height:250px;margin:0 auto;">
+            <div style="position:absolute;left:0;right:0;top:75%;transform:translateY(-50%);padding:5px 8px;background:rgba(15,11,34,.55);color:#fff86a;font-size:clamp(11px, 2.7vw, 15px);font-weight:800;line-height:1.25;text-shadow:0 1px 3px #000,1px 1px 2px #000;">Catch the latest <strong style="color:#fd8cff;">FRESH FEESH</strong> music from your new favorite artist:</div>
+        </div>
+        <span style="position:relative;top:-20px;padding:8px;background:rgba(15,11,34,.9);color:#fff86a;font-size:clamp(11px, 2.7vw, 15px);font-weight:800;line-height:1.25;text-shadow:0 1px 3px #000,1px 1px 2px #000;">Listen to Greggy FEESH and the Phlops on <strong style="color:#1db954;">Spotify</strong> &rarr;</span>
+    </a>`;
+    const feeshAdArticleStyle = isThanksgivingWindow
+        ? ''
+        : 'style="padding:0;background:#fff;border-color:#fff"';
     let cards = issue.games.map(card);
     const definitions = /<!-- SPONSOR-DEFINITIONS-START -->([\s\S]*?)<!-- SPONSOR-DEFINITIONS-END -->/;
     const match = template.match(definitions);
     if (match) {
         const sponsors = [...match[1].matchAll(/<!-- SPONSOR-START -->\s*([\s\S]*?)\s*<!-- SPONSOR-END -->/g)]
-            .map(item => item[1].replaceAll('{{FEESH_AD_CONTENT}}', feeshAdContent));
+            .map(item => item[1]
+                .replaceAll('{{FEESH_AD_ARTICLE_STYLE}}', feeshAdArticleStyle)
+                .replaceAll('{{FEESH_AD_CONTENT}}', feeshAdContent));
         if (sponsors.length !== 3 || !template.includes('<!-- GAME-CARDS -->')) {
             throw new Error('Invalid NBA sponsor definitions or missing game cards marker');
         }
