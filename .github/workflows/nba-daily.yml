@@ -2,8 +2,7 @@ name: NBA Daily Update
 
 on:
   schedule:
-    - cron: '41 8 * * *'
-    - cron: '41 9 * * *'
+    - cron: '41 9-20 * * *'
   workflow_dispatch:
 
 permissions:
@@ -37,7 +36,6 @@ jobs:
 
       - name: Update NBA projections and archives
         env:
-          NBA_SCHEDULE: ${{ github.event.schedule }}
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
           PG_PI_X: ${{ secrets.PG_PI_X }}
           PG_PI7: ${{ secrets.PG_PI7 }}

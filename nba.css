@@ -6,6 +6,7 @@ a { color: #8bd1ff; }
 a:focus-visible { outline: 3px solid #ffca65; outline-offset: 3px; }
 .skip-link { position: absolute; z-index: 5; top: -60px; left: 16px; padding: 10px 15px; color: #fff; background: #14365a; }
 .skip-link:focus { top: 10px; }
+.viewport-date-notice { padding: 16px; border: 2px solid #a34a00; background: #fff1d6; color: #482100; font-weight: 700; }
 .site-bar { background: #03070c; border-bottom: 2px solid #1672b9; }
 .site-bar-inner { max-width: 1120px; margin: auto; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
 .site-bar a { color: #fff; font-weight: 700; text-decoration: none; }

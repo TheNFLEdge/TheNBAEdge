@@ -227,12 +227,28 @@ test('public issue and season records use the displayed comparison spread only',
     assert.doesNotMatch(index, /favorable|original|hypothetical/i);
 });
 
-test('previous daily viewport remains visible until 04:30 Eastern, including DST', () => {
+test('outdated viewport stays accessible with a date warning, including DST', () => {
     const root = path.join(__dirname, '..');
     const script = fs.readFileSync(path.join(root, 'nba-viewport.js'), 'utf8');
-    function check(pathname, issueDate, instant) {
+    function check(pathname, issueDate, instant, intl = Intl) {
         let redirected = null;
         let scheduled;
+        let notice;
+        let ready;
+        const document = {
+            currentScript: { dataset: { date: issueDate, fallback: 'nba-unavailable.html' } },
+            readyState: 'loading',
+            addEventListener: (eventName, callback) => {
+                assert.equal(eventName, 'DOMContentLoaded');
+                ready = callback;
+            },
+            getElementById: () => notice,
+            createElement: () => ({ setAttribute: (name, value) => { assert.equal(`${name}=${value}`, 'role=status'); } }),
+            querySelector: selector => {
+                assert.equal(selector, 'main');
+                return { prepend: element => { notice = element; } };
+            }
+        };
         const clock = class extends Date {
             constructor(...args) { super(...(args.length ? args : [instant])); }
         };
@@ -241,26 +257,42 @@ test('previous daily viewport remains visible until 04:30 Eastern, including DST
             setInterval: (callback, delay) => { scheduled = { callback, delay }; }
         };
         vm.runInNewContext(script, {
-            window, document: { currentScript: { dataset: { date: issueDate, fallback: 'nba-unavailable.html' } } },
-            Date: clock, Intl, console
+            window, document, Date: clock, Intl: intl, console: { error() {} }
         });
-        return { redirected, scheduled };
+        if (ready) ready();
+        document.readyState = 'complete';
+        return { redirected, scheduled, notice };
     }
-    assert.equal(check('/NBATMP.htm', '2026-11-15', '2026-11-16T05:00:00Z').redirected, null);
-    assert.equal(check('/NBATMP.htm', '2026-11-15', '2026-11-16T09:29:00Z').redirected, null);
+    assert.equal(check('/NBATMP.htm', '2026-11-15', '2026-11-16T05:00:00Z').notice, undefined);
+    assert.equal(check('/NBATMP.htm', '2026-11-15', '2026-11-16T09:29:00Z').notice, undefined);
     const stale = check('/NBATMP.htm', '2026-11-15', '2026-11-16T09:30:00Z');
-    assert.equal(stale.redirected, 'nba-unavailable.html');
+    assert.equal(stale.redirected, null);
+    assert.match(stale.notice.textContent, /2026-11-15.*not today's update/);
+    assert.equal(stale.notice.className, 'viewport-date-notice');
     assert.equal(stale.scheduled.delay, 60000);
-    assert.equal(check('/NBATMP.htm', '2026-07-01', '2026-07-02T08:29:00Z').redirected, null);
-    assert.equal(check('/NBATMP.htm', '2026-07-01', '2026-07-02T08:30:00Z').redirected, 'nba-unavailable.html');
-    assert.equal(check('/NBATMP.htm', '2026-11-14', '2026-11-16T05:01:00Z').redirected, 'nba-unavailable.html');
-    assert.equal(check('/NBATMP.htm', '2026-11-16', '2026-11-16T10:00:00Z').redirected, null);
-    assert.equal(check('/nba26-001.html', '2026-11-15', '2026-11-16T05:00:00Z').redirected, null);
-    assert.equal(check('/archives/2026/nba26-001.html', '2026-11-15', '2026-11-16T05:00:00Z').redirected, null);
+    stale.scheduled.callback();
+    assert.match(stale.notice.textContent, /2026-11-15.*not today's update/);
+    assert.equal(check('/NBATMP.htm', '2026-07-01', '2026-07-02T08:29:00Z').notice, undefined);
+    assert.match(check('/NBATMP.htm', '2026-07-01', '2026-07-02T08:30:00Z').notice.textContent, /not today's update/);
+    assert.match(check('/NBATMP.htm', '2026-11-14', '2026-11-16T05:01:00Z').notice.textContent, /not today's update/);
+    assert.equal(check('/NBATMP.htm', '2026-11-16', '2026-11-16T10:00:00Z').notice, undefined);
+    assert.match(check('/NBATMP.htm', '2026-11-17', '2026-11-16T10:00:00Z').notice.textContent, /check your device/);
+    assert.match(check('/NBATMP.htm', 'invalid', '2026-11-16T10:00:00Z').notice.textContent, /missing or invalid/);
+    const brokenIntl = { DateTimeFormat: class { constructor() { throw new Error('unsupported timezone'); } } };
+    assert.match(check('/NBATMP.htm', '2026-11-15', '2026-11-16T10:00:00Z', brokenIntl).notice.textContent, /Unable to verify.*2026-11-15/);
+    assert.equal(check('/nba26-001.html', '2026-11-15', '2026-11-16T05:00:00Z').notice, undefined);
+    assert.equal(check('/archives/2026/nba26-001.html', '2026-11-15', '2026-11-16T05:00:00Z').notice, undefined);
     assert.ok(fs.existsSync(path.join(root, 'images', 'under-construction.gif')));
     const fallback = fs.readFileSync(path.join(root, 'nba-unavailable.html'), 'utf8');
     assert.match(fallback, /href="archives\/index\.html"/);
     assert.match(fallback, /src="images\/under-construction\.gif"/);
+});
+
+test('daily workflow schedules recurring publication attempts throughout the day', () => {
+    const workflow = fs.readFileSync(path.join(__dirname, '..', '.github', 'workflows', 'nba-daily.yml'), 'utf8');
+    assert.match(workflow, /cron: '41 9-20 \* \* \*'/);
+    assert.match(workflow, /workflow_dispatch:/);
+    assert.match(workflow, /group: nba-daily-publication/);
 });
 
 test('overnight score passes update the current viewport without altering predictions or creating a new issue', async t => {
@@ -449,12 +481,37 @@ test('Eastern dates and season rollover honor daylight saving time', () => {
     assert.equal(daily.easternDate(new Date('2026-11-01T04:30:00Z')), '2026-11-01');
     assert.equal(daily.easternParts(new Date('2026-11-01T09:41:00Z')).hour, '04');
     assert.equal(daily.easternParts(new Date('2026-07-01T08:41:00Z')).hour, '04');
-    assert.equal(daily.shouldRunSchedule(new Date('2026-07-01T10:15:00Z'), '41 8 * * *'), true);
-    assert.equal(daily.shouldRunSchedule(new Date('2026-07-01T10:15:00Z'), '41 9 * * *'), false);
-    assert.equal(daily.shouldRunSchedule(new Date('2026-11-01T10:15:00Z'), '41 9 * * *'), true);
-    assert.equal(daily.shouldRunSchedule(new Date('2026-11-01T10:15:00Z'), '41 8 * * *'), false);
     assert.equal(daily.seasonStart('2027-06-30'), 2026);
     assert.equal(daily.seasonStart('2027-07-01'), 2027);
+});
+
+test('a failed daily update leaves the last viewport intact and a later retry publishes once', async t => {
+    const root = temporaryRoot(t);
+    const stats = { gp: 4, wins: 3, losses: 1, pf_sum: 440, pa_sum: 420 };
+    let unavailable = false;
+    const provider = {
+        scoreboard: async date => {
+            if (unavailable) throw new data.ProviderUnavailableError('scoreboard unavailable');
+            return [event(date, `${date}T23:00:00Z`, false)];
+        },
+        teamStats: async () => ({ ...stats }),
+        mergeOdds: async () => {},
+        finalScore: async () => ({ away: 100, home: 110 })
+    };
+    await daily.run({ root, now: new Date('2026-11-18T09:41:00Z'), provider, env: {} });
+    const previous = fs.readFileSync(path.join(root, 'NBATMP.htm'), 'utf8');
+    unavailable = true;
+    await assert.rejects(daily.run({ root, now: new Date('2026-11-19T09:41:00Z'), provider, env: {} }), /scoreboard unavailable/);
+    assert.equal(fs.readFileSync(path.join(root, 'NBATMP.htm'), 'utf8'), previous);
+    assert.equal(daily.readState(root).issues.length, 1);
+    unavailable = false;
+    await daily.run({ root, now: new Date('2026-11-19T10:41:00Z'), provider, env: {} });
+    const published = fs.readFileSync(path.join(root, 'NBATMP.htm'), 'utf8');
+    assert.match(published, /2026-11-19 Picks/);
+    assert.ok(fs.existsSync(path.join(root, 'archives', '2026', 'nba26-001.html')));
+    await daily.run({ root, now: new Date('2026-11-19T11:41:00Z'), provider, env: {} });
+    assert.equal(fs.readFileSync(path.join(root, 'NBATMP.htm'), 'utf8'), published);
+    assert.equal(daily.readState(root).issues.length, 2);
 });
 
 test('daily rotation is idempotent and archives postponed games independently', async t => {

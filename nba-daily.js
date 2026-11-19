@@ -28,13 +28,6 @@ function seasonStart(date) {
     return month >= 7 ? year : year - 1;
 }
 
-function shouldRunSchedule(now, schedule) {
-    const probe = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 8, 41));
-    const expected = easternParts(probe).hour === '04' ? '41 8 * * *' : '41 9 * * *';
-    if (!['41 8 * * *', '41 9 * * *'].includes(schedule)) throw new Error('Unrecognized NBA scheduled cron');
-    return schedule === expected;
-}
-
 function readState(root) {
     const file = path.join(root, STATE);
     if (!fs.existsSync(file)) {
@@ -232,10 +225,6 @@ if (require.main === module) {
             console.log('Skipping score update outside the 01:00-04:59 Eastern window.');
             return;
         }
-        if (!scoresOnly && process.env.GITHUB_EVENT_NAME === 'schedule' && !shouldRunSchedule(now, process.env.NBA_SCHEDULE)) {
-            console.log('Skipping the UTC cron that does not correspond to 04:41 Eastern today.');
-            return;
-        }
         return run({ now, scoresOnly });
     }).catch(error => {
         console.error(`NBA daily update failed: ${error.message}`);
@@ -243,4 +232,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { easternDate, easternParts, readState, refreshResults, run, seasonStart, shouldRunSchedule };
+module.exports = { easternDate, easternParts, readState, refreshResults, run, seasonStart };
