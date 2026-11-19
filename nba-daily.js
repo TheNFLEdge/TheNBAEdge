@@ -106,7 +106,7 @@ function refreshResults(root = ROOT) {
     console.log(`Refreshed results for ${state.issues.filter(item => item.archived).length} archived issues.`);
 }
 
-async function run({ root = ROOT, now = new Date(), provider = data, env = process.env, scoresOnly = false } = {}) {
+async function run({ root = ROOT, now = new Date(), provider = data, env = process.env, scoresOnly = false, rebuildToday = false } = {}) {
     if (!Number.isFinite(now.getTime())) throw new Error('Invalid current time');
     const today = easternDate(now);
     const season = seasonStart(today);
@@ -148,9 +148,48 @@ async function run({ root = ROOT, now = new Date(), provider = data, env = proce
         }
     }
 
+    if (scoresOnly && rebuildToday) throw new Error('Cannot rebuild today while running a score-only update');
     if (scoresOnly) {
         const issue = viewportIssue(root, state);
         if (issue) outputs.set(path.join(root, VIEWPORT), publish.renderIssue(issue.template, issue));
+    } else if (rebuildToday) {
+        const issue = state.issues.find(item => item.date === today);
+        if (!issue) throw new Error(`Cannot rebuild today's issue: no issue exists for ${today}`);
+        if (issue.archived) throw new Error(`Cannot rebuild today's issue: ${publish.issueName(issue)} is already archived`);
+        if (issue.games.some(game => !Number.isFinite(Date.parse(game.date)) || Date.parse(game.date) <= now.getTime())) {
+            throw new Error('Cannot rebuild today\'s issue after any game has started');
+        }
+        const config = modelConfig(env);
+        if (config.usesFallback) throw new Error('Cannot rebuild today\'s issue without all configured projection secrets');
+        const games = issue.games.map(game => {
+            if (!game.away?.stats || !game.home?.stats) {
+                throw new Error(`Cannot rebuild projection for game ${game.id}: stored team stats are missing`);
+            }
+            const projection = projectMatchup(game.away.stats, game.home.stats, config);
+            if (!projection) throw new Error(`Cannot rebuild projection for game ${game.id}: stored team stats are incomplete`);
+            return {
+                ...game,
+                away: { ...game.away },
+                home: { ...game.home },
+                odds: { ...game.odds },
+                projection
+            };
+        });
+        await provider.mergeOdds(games, env.ODDS_API_KEY);
+        const updated = {
+            ...issue,
+            games,
+            template,
+            model_source: 'configured'
+        };
+        const html = publish.renderIssue(template, updated);
+        updated.canonical_hash = publish.hash(html);
+        state.issues[state.issues.indexOf(issue)] = updated;
+        const canonical = path.join(root, publish.issueName(updated));
+        outputs.set(canonical, html);
+        outputs.set(path.join(root, VIEWPORT), html);
+        changed = true;
+        console.log(`Rebuilt ${publish.issueName(updated)} from stored team stats using configured secrets`);
     } else if (!state.issues.some(issue => issue.date === today)) {
         const events = await provider.scoreboard(today);
         const scheduled = events.filter(event => {
@@ -220,12 +259,16 @@ if (require.main === module) {
     Promise.resolve().then(() => {
         if (process.argv.includes('--refresh-results')) return refreshResults();
         const scoresOnly = process.argv.includes('--scores-only');
+        const rebuildToday = process.env.REBUILD_TODAY === 'true';
+        if (rebuildToday && process.env.GITHUB_EVENT_NAME !== 'workflow_dispatch') {
+            throw new Error('REBUILD_TODAY is only allowed for a manually dispatched workflow');
+        }
         if (scoresOnly && process.env.GITHUB_EVENT_NAME === 'schedule' &&
             !['01', '02', '03', '04'].includes(easternParts(now).hour)) {
             console.log('Skipping score update outside the 01:00-04:59 Eastern window.');
             return;
         }
-        return run({ now, scoresOnly });
+        return run({ now, scoresOnly, rebuildToday });
     }).catch(error => {
         console.error(`NBA daily update failed: ${error.message}`);
         process.exitCode = 1;

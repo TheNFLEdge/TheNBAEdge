@@ -100,6 +100,16 @@ function card(game) {
 }
 
 function renderIssue(template, issue, prefix = '') {
+    const year = Number(issue.date.slice(0, 4));
+    const thanksgiving = new Date(Date.UTC(year, 10, 1));
+    thanksgiving.setUTCDate(1 + ((4 - thanksgiving.getUTCDay() + 7) % 7) + 21);
+    const thanksgivingStart = new Date(thanksgiving);
+    thanksgivingStart.setUTCDate(thanksgivingStart.getUTCDate() - 7);
+    const thanksgivingEnd = new Date(thanksgiving);
+    thanksgivingEnd.setUTCDate(thanksgivingEnd.getUTCDate() + 4);
+    const dateValue = Date.parse(`${issue.date}T00:00:00Z`);
+    const isThanksgivingWindow = dateValue >= thanksgivingStart.getTime() && dateValue <= thanksgivingEnd.getTime();
+    const feeshAd = isThanksgivingWindow ? 'gfeesh-thanksgiving-ad.jpg' : 'gfish-promo-ad.jpg';
     let cards = issue.games.map(card);
     const definitions = /<!-- SPONSOR-DEFINITIONS-START -->([\s\S]*?)<!-- SPONSOR-DEFINITIONS-END -->/;
     const match = template.match(definitions);
@@ -133,6 +143,7 @@ function renderIssue(template, issue, prefix = '') {
         .replaceAll('{{DATE}}', escapeHtml(issue.date))
         .replaceAll('{{ISSUE}}', `Issue ${issue.number} &middot; ${issue.season}&ndash;${String(issue.season + 1).slice(-2)} season`)
         .replace('<!-- GAME-CARDS -->', cards.join('\n') || '<p class="game-card">No upcoming NBA games found for this date.</p>')
+        .replaceAll('{{FEESH_AD_URL}}', `${prefix}images/${feeshAd}`)
         .replaceAll('{{ROOT}}', prefix);
 }
 

@@ -292,7 +292,20 @@ test('daily workflow schedules four publication attempts three hours apart', () 
     const workflow = fs.readFileSync(path.join(__dirname, '..', '.github', 'workflows', 'nba-daily.yml'), 'utf8');
     assert.match(workflow, /cron: '41 9-18\/3 \* \* \*'/);
     assert.match(workflow, /workflow_dispatch:/);
+    assert.match(workflow, /rebuild_today:/);
     assert.match(workflow, /group: nba-daily-publication/);
+});
+
+test('Greggy Feesh Thanksgiving artwork is used for NFL weeks 11 and 12', () => {
+    const template = fs.readFileSync(path.join(__dirname, '..', 'nba-template.htm'), 'utf8');
+    const game = data.parseMatchup(event('seasonal-ad', '2026-11-19T23:00:00Z', false));
+    const renderDate = date => publish.renderIssue(template, {
+        date, season: 2026, number: 1, games: [game]
+    }, '../../');
+
+    assert.match(renderDate('2026-11-19'), /src="\.\.\/\.\.\/images\/gfeesh-thanksgiving-ad\.jpg"/);
+    assert.match(renderDate('2026-11-30'), /src="\.\.\/\.\.\/images\/gfeesh-thanksgiving-ad\.jpg"/);
+    assert.match(renderDate('2026-12-01'), /src="\.\.\/\.\.\/images\/gfish-promo-ad\.jpg"/);
 });
 
 test('overnight score passes update the current viewport without altering predictions or creating a new issue', async t => {
@@ -590,6 +603,56 @@ test('configured settings are recorded without values and preserved on rerun', a
     assert.doesNotMatch(fs.readFileSync(path.join(root, 'nba_rotation_state.json'), 'utf8'), /PG_PI0|PG_MD/);
     await daily.run({ root, now, provider, env: {} });
     assert.equal(daily.readState(root).issues[0].model_source, 'configured');
+});
+
+test('manual rebuild replaces only today using configured secrets and stored stats', async t => {
+    const root = temporaryRoot(t);
+    const stats = {
+        A: { gp: 4, wins: 1, losses: 3, pf_sum: 381, pa_sum: 469 },
+        H: { gp: 4, wins: 4, losses: 0, pf_sum: 531, pa_sum: 462 }
+    };
+    let scoreboardCalls = 0;
+    const provider = {
+        scoreboard: async date => {
+            if (scoreboardCalls++) throw new Error('Rebuild should not refetch the scoreboard');
+            return [event(`${date}-1`, `${date}T23:00:00Z`, false)];
+        },
+        teamStats: async teamId => ({ ...stats[teamId] }),
+        mergeOdds: async () => {}
+    };
+    const configured = {
+        PG_PI0: '2.4', PG_PI7: '2.2', PG_PPI5: '2.0',
+        PG_PI2: '1.873', PG_PI_X: '1.765', PG_MD: '1.78'
+    };
+    const now = new Date('2026-11-19T09:41:00Z');
+    await daily.run({ root, now, provider, env: {} });
+    const original = daily.readState(root).issues[0];
+    const originalHtml = fs.readFileSync(path.join(root, 'nba26-001.html'), 'utf8');
+    assert.equal(original.model_source, 'fallback');
+
+    await assert.rejects(
+        daily.run({ root, now, provider, env: {}, rebuildToday: true }),
+        /without all configured projection secrets/
+    );
+    assert.equal(fs.readFileSync(path.join(root, 'nba26-001.html'), 'utf8'), originalHtml);
+
+    await daily.run({ root, now, provider, env: configured, rebuildToday: true });
+    const rebuilt = daily.readState(root).issues[0];
+    const canonical = fs.readFileSync(path.join(root, 'nba26-001.html'), 'utf8');
+    assert.equal(rebuilt.number, original.number);
+    assert.equal(rebuilt.date, original.date);
+    assert.equal(rebuilt.model_source, 'configured');
+    assert.notDeepEqual(rebuilt.games[0].projection, original.games[0].projection);
+    assert.deepEqual(rebuilt.games[0].odds, original.games[0].odds);
+    assert.equal(rebuilt.canonical_hash, publish.hash(canonical));
+    assert.equal(fs.readFileSync(path.join(root, 'NBATMP.htm'), 'utf8'), canonical);
+    assert.match(canonical, /gfeesh-thanksgiving-ad\.jpg/);
+    assert.equal(daily.readState(root).issues.length, 1);
+    await assert.rejects(
+        daily.run({ root, now: new Date('2026-11-19T23:01:00Z'), provider, env: configured, rebuildToday: true }),
+        /after any game has started/
+    );
+    assert.equal(fs.readFileSync(path.join(root, 'nba26-001.html'), 'utf8'), canonical);
 });
 
 test('season rollover archives the previous season and restarts issue numbering', async t => {

@@ -4,6 +4,12 @@ on:
   schedule:
     - cron: '41 9-18/3 * * *'
   workflow_dispatch:
+    inputs:
+      rebuild_today:
+        description: Replace today's published projections using current repository secrets
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: write
@@ -43,6 +49,7 @@ jobs:
           PG_PI2: ${{ secrets.PG_PI2 }}
           PG_PI0: ${{ secrets.PG_PI0 }}
           PG_MD: ${{ secrets.PG_MD }}
+          REBUILD_TODAY: ${{ github.event_name == 'workflow_dispatch' && inputs.rebuild_today || false }}
         run: npm run daily
 
       - name: Commit and push publication to main
