@@ -106,6 +106,23 @@ function refreshResults(root = ROOT) {
     console.log(`Refreshed results for ${state.issues.filter(item => item.archived).length} archived issues.`);
 }
 
+function refreshTodayPresentation(root = ROOT, now = new Date()) {
+    const state = readState(root);
+    const today = easternDate(now);
+    const issue = state.issues.find(item => item.date === today);
+    if (!issue) throw new Error(`Cannot refresh today's presentation: no issue exists for ${today}`);
+    if (issue.archived) throw new Error(`Cannot refresh today's presentation: ${publish.issueName(issue)} is already archived`);
+    const template = fs.readFileSync(path.join(root, 'nba-template.htm'), 'utf8');
+    const updated = { ...issue, template };
+    const html = publish.renderIssue(template, updated);
+    updated.canonical_hash = publish.hash(html);
+    state.issues[state.issues.indexOf(issue)] = updated;
+    publish.writeAtomic(path.join(root, publish.issueName(updated)), html);
+    publish.writeAtomic(path.join(root, VIEWPORT), html);
+    publish.writeAtomic(path.join(root, STATE), `${JSON.stringify(state, null, 2)}\n`);
+    console.log(`Refreshed ${publish.issueName(updated)} presentation without changing projections or lines`);
+}
+
 async function run({ root = ROOT, now = new Date(), provider = data, env = process.env, scoresOnly = false, rebuildToday = false } = {}) {
     if (!Number.isFinite(now.getTime())) throw new Error('Invalid current time');
     const today = easternDate(now);
@@ -260,9 +277,11 @@ if (require.main === module) {
         if (process.argv.includes('--refresh-results')) return refreshResults();
         const scoresOnly = process.argv.includes('--scores-only');
         const rebuildToday = process.env.REBUILD_TODAY === 'true';
-        if (rebuildToday && process.env.GITHUB_EVENT_NAME !== 'workflow_dispatch') {
-            throw new Error('REBUILD_TODAY is only allowed for a manually dispatched workflow');
+        const refreshPresentation = process.env.REFRESH_TODAY_PRESENTATION === 'true';
+        if ((rebuildToday || refreshPresentation) && process.env.GITHUB_EVENT_NAME !== 'workflow_dispatch') {
+            throw new Error('Manual publication overrides are only allowed for a manually dispatched workflow');
         }
+        if (refreshPresentation) return refreshTodayPresentation(ROOT, now);
         if (scoresOnly && process.env.GITHUB_EVENT_NAME === 'schedule' &&
             !['01', '02', '03', '04'].includes(easternParts(now).hour)) {
             console.log('Skipping score update outside the 01:00-04:59 Eastern window.');
@@ -275,4 +294,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { easternDate, easternParts, readState, refreshResults, run, seasonStart };
+module.exports = { easternDate, easternParts, readState, refreshResults, refreshTodayPresentation, run, seasonStart };

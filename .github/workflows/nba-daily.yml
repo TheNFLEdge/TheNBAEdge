@@ -10,6 +10,11 @@ on:
         type: boolean
         required: false
         default: false
+      refresh_today_presentation:
+        description: Refresh today's page design without changing projections or lines
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: write
@@ -50,6 +55,7 @@ jobs:
           PG_PI0: ${{ secrets.PG_PI0 }}
           PG_MD: ${{ secrets.PG_MD }}
           REBUILD_TODAY: ${{ github.event_name == 'workflow_dispatch' && inputs.rebuild_today || false }}
+          REFRESH_TODAY_PRESENTATION: ${{ github.event_name == 'workflow_dispatch' && inputs.refresh_today_presentation || false }}
         run: npm run daily
 
       - name: Commit and push publication to main

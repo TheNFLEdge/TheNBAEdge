@@ -293,19 +293,28 @@ test('daily workflow schedules four publication attempts three hours apart', () 
     assert.match(workflow, /cron: '41 9-18\/3 \* \* \*'/);
     assert.match(workflow, /workflow_dispatch:/);
     assert.match(workflow, /rebuild_today:/);
+    assert.match(workflow, /refresh_today_presentation:/);
     assert.match(workflow, /group: nba-daily-publication/);
 });
 
-test('Greggy Feesh Thanksgiving artwork is used for NFL weeks 11 and 12', () => {
+test('Greggy Feesh Thanksgiving sponsor matches the NFL seasonal banner', () => {
     const template = fs.readFileSync(path.join(__dirname, '..', 'nba-template.htm'), 'utf8');
     const game = data.parseMatchup(event('seasonal-ad', '2026-11-19T23:00:00Z', false));
     const renderDate = date => publish.renderIssue(template, {
         date, season: 2026, number: 1, games: [game]
     }, '../../');
 
-    assert.match(renderDate('2026-11-19'), /src="\.\.\/\.\.\/images\/gfeesh-thanksgiving-ad\.jpg"/);
-    assert.match(renderDate('2026-11-30'), /src="\.\.\/\.\.\/images\/gfeesh-thanksgiving-ad\.jpg"/);
-    assert.match(renderDate('2026-12-01'), /src="\.\.\/\.\.\/images\/gfish-promo-ad\.jpg"/);
+    const seasonal = renderDate('2026-11-19');
+    assert.match(seasonal, /src="\.\.\/\.\.\/images\/gfeesh-thanksgiving-ad\.jpg"/);
+    assert.match(seasonal, /Pumpkin Pie \(feat\. G Pan\)/);
+    assert.match(seasonal, /The Thanksgiving/);
+    assert.match(seasonal, /background:#f28b21/);
+    assert.match(seasonal, /background:#e46aff/);
+    assert.match(seasonal, /height:clamp\(210px, 27vw, 250px\)/);
+    assert.match(renderDate('2026-11-30'), /gfeesh-thanksgiving-ad\.jpg/);
+    const regular = renderDate('2026-12-01');
+    assert.match(regular, /gfish-promo-ad\.jpg/);
+    assert.doesNotMatch(regular, /Pumpkin Pie \(feat\. G Pan\)/);
 });
 
 test('overnight score passes update the current viewport without altering predictions or creating a new issue', async t => {
@@ -653,6 +662,36 @@ test('manual rebuild replaces only today using configured secrets and stored sta
         /after any game has started/
     );
     assert.equal(fs.readFileSync(path.join(root, 'nba26-001.html'), 'utf8'), canonical);
+});
+
+test('presentation refresh updates the seasonal ad without changing projections or lines', async t => {
+    const root = temporaryRoot(t);
+    const stats = { gp: 4, wins: 2, losses: 2, pf_sum: 440, pa_sum: 440 };
+    const provider = {
+        scoreboard: async date => [event(`${date}-1`, `${date}T23:00:00Z`, false)],
+        teamStats: async () => ({ ...stats }),
+        mergeOdds: async () => {}
+    };
+    const now = new Date('2026-11-19T09:41:00Z');
+    await daily.run({ root, now, provider, env: {} });
+    const original = daily.readState(root).issues[0];
+    const originalProjection = original.games[0].projection;
+    const originalOdds = original.games[0].odds;
+    const templatePath = path.join(root, 'nba-template.htm');
+    const oldTemplate = fs.readFileSync(templatePath, 'utf8');
+    fs.writeFileSync(templatePath, oldTemplate.replace('Pumpkin Pie (feat. G Pan)', 'Old seasonal artwork'));
+
+    daily.refreshTodayPresentation(root, now);
+
+    const refreshed = daily.readState(root).issues[0];
+    const html = fs.readFileSync(path.join(root, 'nba26-001.html'), 'utf8');
+    assert.deepEqual(refreshed.games[0].projection, originalProjection);
+    assert.deepEqual(refreshed.games[0].odds, originalOdds);
+    assert.equal(refreshed.model_source, original.model_source);
+    assert.match(html, /Pumpkin Pie \(feat\. G Pan\)/);
+    assert.doesNotMatch(html, /Old seasonal artwork/);
+    assert.equal(refreshed.canonical_hash, publish.hash(html));
+    assert.equal(fs.readFileSync(path.join(root, 'NBATMP.htm'), 'utf8'), html);
 });
 
 test('season rollover archives the previous season and restarts issue numbering', async t => {

@@ -110,12 +110,26 @@ function renderIssue(template, issue, prefix = '') {
     const dateValue = Date.parse(`${issue.date}T00:00:00Z`);
     const isThanksgivingWindow = dateValue >= thanksgivingStart.getTime() && dateValue <= thanksgivingEnd.getTime();
     const feeshAd = isThanksgivingWindow ? 'gfeesh-thanksgiving-ad.jpg' : 'gfish-promo-ad.jpg';
+    const feeshAdPath = `${prefix}images/${feeshAd}`;
+    const feeshAdContent = isThanksgivingWindow
+        ? `<div style="position:relative; padding-bottom:55px; background:linear-gradient(rgba(33,23,42,.72), rgba(33,23,42,.72)), url('${feeshAdPath}') center 40% / cover;">
+        <img src="${feeshAdPath}" alt="Greggy FEESH and the Phlops celebrate Thanksgiving" loading="lazy" style="width:min(100%, 490px); height:clamp(210px, 27vw, 250px); max-width:none; object-fit:cover; object-position:center 40%; display:block;">
+        <div style="position:absolute; bottom:0; left:0; right:0; display:flex; flex-wrap:wrap; justify-content:center; gap:10px; padding:22px 12px 12px; background:linear-gradient(transparent, rgba(33,23,42,.95)); font-family:Arial, sans-serif;">
+            <a href="https://distrokid.com/hyperfollow/greggyfeeshandthephlops/pumpkin-pie-feat-g-pan?ref=release" target="_blank" rel="noopener noreferrer" style="flex:0 1 auto; min-width:0; padding:12px; border-radius:6px; background:#f28b21; color:#21172a; font-size:clamp(12px, 3vw, 16px); font-weight:700; text-align:center; text-decoration:none;">Pumpkin Pie (feat. G Pan)</a>
+            <a href="https://distrokid.com/hyperfollow/greggyfeeshandthephlops/the-thanksgiving?ref=release" target="_blank" rel="noopener noreferrer" style="flex:0 1 auto; min-width:0; padding:12px; border-radius:6px; background:#e46aff; color:#21172a; font-size:clamp(12px, 3vw, 16px); font-weight:700; text-align:center; text-decoration:none;">The Thanksgiving</a>
+        </div>
+    </div>
+    <div style="padding:14px 18px; text-align:center; font-family:Arial, sans-serif;">
+        <h2 style="color:#ffd700;">What's better than Thanksgiving, turkey &amp; football?</h2>
+        <p style="margin:0;"><strong style="color:#8cff00;">FRESH FEESH&mdash;with a slice of Pumpkin Pie!</strong> Pre-order the latest releases from <strong style="color:#e46aff;">Greggy FEESH and the Phlops</strong>.</p>
+    </div>`
+        : `<p class="sponsor-label">Advertisement</p><a href="https://open.spotify.com/artist/6fa6DV6wh6WscR3R7fWAyI" target="_blank" rel="noopener noreferrer"><img src="${feeshAdPath}" alt="Greggy Feesh and the Phlops" loading="lazy"><span>Check out the latest Fresh Feesh music on Spotify &rarr; (opens in a new tab)</span></a>`;
     let cards = issue.games.map(card);
     const definitions = /<!-- SPONSOR-DEFINITIONS-START -->([\s\S]*?)<!-- SPONSOR-DEFINITIONS-END -->/;
     const match = template.match(definitions);
     if (match) {
         const sponsors = [...match[1].matchAll(/<!-- SPONSOR-START -->\s*([\s\S]*?)\s*<!-- SPONSOR-END -->/g)]
-            .map(item => item[1]);
+            .map(item => item[1].replaceAll('{{FEESH_AD_CONTENT}}', feeshAdContent));
         if (sponsors.length !== 3 || !template.includes('<!-- GAME-CARDS -->')) {
             throw new Error('Invalid NBA sponsor definitions or missing game cards marker');
         }
@@ -143,7 +157,6 @@ function renderIssue(template, issue, prefix = '') {
         .replaceAll('{{DATE}}', escapeHtml(issue.date))
         .replaceAll('{{ISSUE}}', `Issue ${issue.number} &middot; ${issue.season}&ndash;${String(issue.season + 1).slice(-2)} season`)
         .replace('<!-- GAME-CARDS -->', cards.join('\n') || '<p class="game-card">No upcoming NBA games found for this date.</p>')
-        .replaceAll('{{FEESH_AD_URL}}', `${prefix}images/${feeshAd}`)
         .replaceAll('{{ROOT}}', prefix);
 }
 
