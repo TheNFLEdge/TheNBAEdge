@@ -16,7 +16,9 @@ The 2013–2016 season indexes summarize reported records and link to their unde
 
 The workflow in `.github/workflows/nba-daily.yml` targets **04:41 America/New_York** every day. GitHub schedules are UTC, so two cron entries cover standard and daylight time; the program runs only the entry corresponding to 04:41 Eastern. GitHub may delay or skip scheduled runs, so 04:41 is a target, not a delivery guarantee. The workflow can also be started manually on `main` at any time. It publishes only to `main`, uses a concurrency group, and commits only after tests and the update succeed.
 
-When a visitor opens a dated `NBATMP.htm`, `nba-viewport.js` compares its issue date with the visitor's current Eastern date and routes an older viewport to `nba-unavailable.html`, which links to the archives. This also covers skipped runs and takes effect at Eastern midnight, including before the scheduled update. The check relies on JavaScript, the visitor's clock, and a working copy of the script; it does not change or delete published issues, and direct links to dated issues are unaffected.
+During the pilot, the previous day's `NBATMP.htm` remains visible until 04:30 Eastern. At 04:30, `nba-viewport.js` routes it to `nba-unavailable.html` if the next issue has not been published; issues older than the previous day are redirected immediately. The check relies on JavaScript, the visitor's clock, and a working copy of the script; it does not change or delete published issues, and direct links to dated issues are unaffected.
+
+The score workflow targets hourly passes at 01:10 through 04:10 Eastern, allowing late games to finish. Each pass looks up earlier unarchived issues, saves available finals, updates the currently displayed issue with individual grades and a summary, and archives an issue once all its games are final. The original numbered issue remains the immutable prediction snapshot; the finalized archive has the results. A score-only pass never generates a new issue or replaces a newer viewport with an older one. GitHub may delay or skip scheduled runs; the 04:41 daily run also retries pending scores.
 
 For the current Eastern calendar date, the program:
 
@@ -62,13 +64,14 @@ Optional GitHub Actions secrets, with NFL-compatible names:
 
 Secrets are repository-specific unless supplied by an organization. Configure them in this repository's GitHub settings if desired; do not commit keys. For local testing, `NBA_ESPN_BASE_URL` and `ODDS_BASE_URL` can override provider base URLs. The workflow does not set these overrides.
 
-Before deploying, review and commit these files, push them to `main`, enable GitHub Actions with workflow read/write permissions, and ensure any branch protection permits the workflow's push. For the website, configure GitHub Pages with **GitHub Actions** as its source. `.github/workflows/deploy-pages.yml` deploys the latest `main` after a push and after a successful daily workflow; this is necessary because a push made with `GITHUB_TOKEN` does not itself trigger another push workflow. A manual workflow dispatch is useful for the initial issue; if the run occurs after games start, only still-upcoming games are included. The initial viewport is a placeholder until the first run. This repository does not automatically copy secrets or Pages settings from the NFL repository.
+Before deploying, review and commit these files, push them to `main`, enable GitHub Actions with workflow read/write permissions, and ensure any branch protection permits the workflow's push. For the website, configure GitHub Pages with **GitHub Actions** as its source. `.github/workflows/deploy-pages.yml` deploys the latest `main` after a push and after a successful daily or score workflow; this is necessary because a push made with `GITHUB_TOKEN` does not itself trigger another push workflow. A manual workflow dispatch is useful for the initial issue; if the run occurs after games start, only still-upcoming games are included. The score workflow can also be dispatched manually. The initial viewport is a placeholder until the first run. This repository does not automatically copy secrets or Pages settings from the NFL repository.
 
 ## Local commands
 
 ```text
 npm test
 npm run daily
+node nba-daily.js --scores-only
 ```
 
-`npm run daily` performs real provider requests and changes the working tree; run it only when ready to create or rotate an issue for the actual current date. To inspect the output without changing this checkout, run it from a separate disposable clone. Schedule and history are provider-dependent; NBA game postponements, ESPN availability, late GitHub starts, and missing lines affect what can be published. Projections are informational and for entertainment only.
+Both update commands perform real provider requests and change the working tree. Run the daily command only when ready to create or rotate an issue for the actual current date; the score-only command updates earlier results without creating today's issue. To inspect the output without changing this checkout, run it from a separate disposable clone. Schedule and history are provider-dependent; NBA game postponements, ESPN availability, late GitHub starts, and missing lines affect what can be published. Projections are informational and for entertainment only.

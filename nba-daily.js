@@ -82,7 +82,7 @@ function readState(root) {
     return state;
 }
 
-async function run({ root = ROOT, now = new Date(), provider = data, env = process.env } = {}) {
+async function run({ root = ROOT, now = new Date(), provider = data, env = process.env, scoresOnly = false } = {}) {
     if (!Number.isFinite(now.getTime())) throw new Error('Invalid current time');
     const today = easternDate(now);
     const season = seasonStart(today);
@@ -124,7 +124,16 @@ async function run({ root = ROOT, now = new Date(), provider = data, env = proce
         }
     }
 
-    if (!state.issues.some(issue => issue.date === today)) {
+    if (scoresOnly) {
+        const viewportPath = path.join(root, VIEWPORT);
+        if (fs.existsSync(viewportPath)) {
+            const viewport = fs.readFileSync(viewportPath, 'utf8');
+            const script = viewport.match(/<script\b[^>]*\bsrc="[^"]*nba-viewport\.js"[^>]*>/);
+            const date = script && script[0].match(/\bdata-date="(\d{4}-\d{2}-\d{2})"/);
+            const issue = date && state.issues.find(item => item.date === date[1]);
+            if (issue) outputs.set(viewportPath, publish.renderIssue(issue.template, issue));
+        }
+    } else if (!state.issues.some(issue => issue.date === today)) {
         const events = await provider.scoreboard(today);
         const scheduled = events.filter(event => {
             return [2, 3].includes(event.season?.type) && easternDate(new Date(event.date)) === today;
@@ -191,11 +200,17 @@ async function run({ root = ROOT, now = new Date(), provider = data, env = proce
 if (require.main === module) {
     const now = new Date();
     Promise.resolve().then(() => {
-        if (process.env.GITHUB_EVENT_NAME === 'schedule' && !shouldRunSchedule(now, process.env.NBA_SCHEDULE)) {
+        const scoresOnly = process.argv.includes('--scores-only');
+        if (scoresOnly && process.env.GITHUB_EVENT_NAME === 'schedule' &&
+            !['01', '02', '03', '04'].includes(easternParts(now).hour)) {
+            console.log('Skipping score update outside the 01:00-04:59 Eastern window.');
+            return;
+        }
+        if (!scoresOnly && process.env.GITHUB_EVENT_NAME === 'schedule' && !shouldRunSchedule(now, process.env.NBA_SCHEDULE)) {
             console.log('Skipping the UTC cron that does not correspond to 04:41 Eastern today.');
             return;
         }
-        return run({ now });
+        return run({ now, scoresOnly });
     }).catch(error => {
         console.error(`NBA daily update failed: ${error.message}`);
         process.exitCode = 1;

@@ -14,10 +14,15 @@
     function checkDate() {
         try {
             const parts = new Intl.DateTimeFormat('en-US', {
-                timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit'
+                timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
             }).formatToParts(new Date());
             const date = Object.fromEntries(parts.map(part => [part.type, part.value]));
-            if (issueDate < `${date.year}-${date.month}-${date.day}`) window.location.replace(fallback);
+            const today = `${date.year}-${date.month}-${date.day}`;
+            const nextDay = new Date(Date.parse(`${issueDate}T00:00:00Z`) + 86400000).toISOString().slice(0, 10);
+            if (today > nextDay || (today === nextDay && `${date.hour}:${date.minute}` >= '04:30')) {
+                window.location.replace(fallback);
+            }
         } catch (error) {
             console.error('Unable to check the NBA viewport date:', error);
             window.location.replace(fallback);

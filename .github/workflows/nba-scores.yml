@@ -1,0 +1,42 @@
+name: NBA Score Update
+
+on:
+  schedule:
+    - cron: '10 5-9 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nba-daily-publication
+  cancel-in-progress: false
+
+jobs:
+  score-update:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: npm ci
+      - name: Run tests
+        run: npm test
+      - name: Update final scores and archives
+        run: node nba-daily.js --scores-only
+      - name: Commit and push results to main
+        uses: stefanzweifel/git-auto-commit-action@v7
+        with:
+          commit_message: |
+            Automated NBA score update
+
+            Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+          file_pattern: '.'

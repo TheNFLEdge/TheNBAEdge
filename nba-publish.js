@@ -90,6 +90,11 @@ function renderIssue(template, issue, prefix = '') {
     } else if (template.includes('<!-- SPONSOR-DEFINITIONS-START -->') || template.includes('<!-- SPONSOR-DEFINITIONS-END -->')) {
         throw new Error('Invalid NBA sponsor definitions');
     }
+    const finished = issue.games.filter(game => game.final).length;
+    if (finished) {
+        const totals = summarize(issue);
+        cards.unshift(`<section class="game-card" aria-label="Projection results"><h2>Projection results</h2><p>Final games: ${finished} of ${issue.games.length}. Records are wins-losses-pushes; games without a projection or line are excluded.</p><p>Winners: ${recordString(totals.winner)} &nbsp; | &nbsp; Against the spread: ${recordString(totals.ats)} &nbsp; | &nbsp; Over/under: ${recordString(totals.total)}</p></section>`);
+    }
     return template.replaceAll('{{ROOT}}', prefix)
         .replaceAll('{{DATE}}', escapeHtml(issue.date))
         .replaceAll('{{ISSUE}}', `Issue ${issue.number} &middot; ${issue.season}&ndash;${String(issue.season + 1).slice(-2)} season`)

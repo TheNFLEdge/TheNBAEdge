@@ -173,14 +173,14 @@ test('game cards present matchup, home line and scores without exposing model in
     assert.match(render(), /The Chicago Bulls head into Brooklyn Nets\./);
 });
 
-test('only an outdated daily viewport routes to the fallback on Eastern date boundaries', () => {
+test('previous daily viewport remains visible until 04:30 Eastern, including DST', () => {
     const root = path.join(__dirname, '..');
     const script = fs.readFileSync(path.join(root, 'nba-viewport.js'), 'utf8');
     function check(pathname, issueDate, instant) {
         let redirected = null;
         let scheduled;
         const clock = class extends Date {
-            constructor() { super(instant); }
+            constructor(...args) { super(...(args.length ? args : [instant])); }
         };
         const window = {
             location: { pathname, replace: url => { redirected = url; } },
@@ -192,18 +192,56 @@ test('only an outdated daily viewport routes to the fallback on Eastern date bou
         });
         return { redirected, scheduled };
     }
-    assert.equal(check('/NBATMP.htm', '2026-11-15', '2026-11-16T04:59:00Z').redirected, null);
-    const stale = check('/NBATMP.htm', '2026-11-15', '2026-11-16T05:00:00Z');
+    assert.equal(check('/NBATMP.htm', '2026-11-15', '2026-11-16T05:00:00Z').redirected, null);
+    assert.equal(check('/NBATMP.htm', '2026-11-15', '2026-11-16T09:29:00Z').redirected, null);
+    const stale = check('/NBATMP.htm', '2026-11-15', '2026-11-16T09:30:00Z');
     assert.equal(stale.redirected, 'nba-unavailable.html');
     assert.equal(stale.scheduled.delay, 60000);
-    assert.equal(check('/NBATMP.htm', '2026-07-01', '2026-07-02T03:59:00Z').redirected, null);
-    assert.equal(check('/NBATMP.htm', '2026-07-01', '2026-07-02T04:00:00Z').redirected, 'nba-unavailable.html');
+    assert.equal(check('/NBATMP.htm', '2026-07-01', '2026-07-02T08:29:00Z').redirected, null);
+    assert.equal(check('/NBATMP.htm', '2026-07-01', '2026-07-02T08:30:00Z').redirected, 'nba-unavailable.html');
+    assert.equal(check('/NBATMP.htm', '2026-11-14', '2026-11-16T05:01:00Z').redirected, 'nba-unavailable.html');
+    assert.equal(check('/NBATMP.htm', '2026-11-16', '2026-11-16T10:00:00Z').redirected, null);
     assert.equal(check('/nba26-001.html', '2026-11-15', '2026-11-16T05:00:00Z').redirected, null);
     assert.equal(check('/archives/2026/nba26-001.html', '2026-11-15', '2026-11-16T05:00:00Z').redirected, null);
     assert.ok(fs.existsSync(path.join(root, 'images', 'under-construction.gif')));
     const fallback = fs.readFileSync(path.join(root, 'nba-unavailable.html'), 'utf8');
     assert.match(fallback, /href="archives\/index\.html"/);
     assert.match(fallback, /src="images\/under-construction\.gif"/);
+});
+
+test('overnight score passes update the current viewport without altering predictions or creating a new issue', async t => {
+    const root = temporaryRoot(t);
+    const stats = { gp: 4, wins: 3, losses: 1, pf_sum: 440, pa_sum: 420 };
+    const final = new Set();
+    const provider = {
+        scoreboard: async date => [event(`${date}-1`, `${date}T23:00:00Z`, false), event(`${date}-2`, `${date}T23:30:00Z`, false)],
+        teamStats: async () => ({ ...stats }),
+        mergeOdds: async () => {},
+        finalScore: async game => final.has(game.id) ? { away: 100, home: 110 } : null
+    };
+    await daily.run({ root, now: new Date('2026-11-15T09:41:00Z'), provider, env: {} });
+    const original = fs.readFileSync(path.join(root, 'nba26-001.html'), 'utf8');
+    final.add('2026-11-15-1');
+    await daily.run({ root, now: new Date('2026-11-16T06:10:00Z'), provider, env: {}, scoresOnly: true });
+    let viewport = fs.readFileSync(path.join(root, 'NBATMP.htm'), 'utf8');
+    assert.match(viewport, /Final games: 1 of 2/);
+    assert.match(viewport, /Final Score:<\/strong> A 100 - H 110/);
+    assert.match(viewport, /Final Score:<\/strong> TBD/);
+    assert.equal(fs.readFileSync(path.join(root, 'nba26-001.html'), 'utf8'), original);
+    assert.equal(daily.readState(root).issues.length, 1);
+    assert.ok(!fs.existsSync(path.join(root, 'archives', '2026', 'nba26-001.html')));
+    final.add('2026-11-15-2');
+    await daily.run({ root, now: new Date('2026-11-16T07:10:00Z'), provider, env: {}, scoresOnly: true });
+    viewport = fs.readFileSync(path.join(root, 'NBATMP.htm'), 'utf8');
+    assert.match(viewport, /Final games: 2 of 2/);
+    assert.match(viewport, /Winners: 2-0-0/);
+    assert.ok(fs.existsSync(path.join(root, 'archives', '2026', 'nba26-001.html')));
+    await daily.run({ root, now: new Date('2026-11-16T09:41:00Z'), provider, env: {} });
+    const next = fs.readFileSync(path.join(root, 'NBATMP.htm'), 'utf8');
+    await daily.run({ root, now: new Date('2026-11-17T06:10:00Z'), provider, env: {}, scoresOnly: true });
+    assert.equal(fs.readFileSync(path.join(root, 'NBATMP.htm'), 'utf8'), next);
+    assert.match(next, /2026-11-16 Picks/);
+    assert.equal(daily.readState(root).issues.length, 2);
 });
 
 test('disclaimer is linked from the portal, about page, and current viewport', () => {
@@ -226,7 +264,8 @@ test('generated archive index preserves local classic season links', () => {
         assert.ok(html.includes(`href="${href}"`), href);
         assert.ok(fs.existsSync(path.join(root, 'archives', ...href.split('/'))), href);
     }
-    assert.equal(fs.readFileSync(path.join(root, 'archives', 'index.html'), 'utf8'), publish.renderArchivesIndex([]));
+    assert.equal(fs.readFileSync(path.join(root, 'archives', 'index.html'), 'utf8'),
+        publish.renderArchivesIndex(daily.readState(root).issues));
 });
 
 test('record summaries cite the original tables and distinguish pilot results', () => {

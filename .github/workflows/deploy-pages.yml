@@ -5,7 +5,7 @@ on:
     branches: [main]
   workflow_dispatch:
   workflow_run:
-    workflows: ['NBA Daily Update']
+    workflows: ['NBA Daily Update', 'NBA Score Update']
     types: [completed]
     branches: [main]
 
