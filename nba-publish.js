@@ -56,6 +56,25 @@ function displayScore(game, score) {
     return `${escapeHtml(game.away.abbreviation)} ${score.away} - ${escapeHtml(game.home.abbreviation)} ${score.home}`;
 }
 
+function resultIndicators(game, result) {
+    let winner = '';
+    if (result.winner === 'win') {
+        winner = result.adjustedAts === 'win' ?
+            '<strong class="result-win" aria-label="Winner and favorable spread comparison correct">W</strong>' :
+            '<span aria-label="Winner correct">W</span>';
+    } else if (result.winner === 'loss') {
+        winner = result.adjustedAts === 'win' ?
+            '<strong class="result-win" aria-label="Winner incorrect, favorable spread comparison correct">COVER</strong>' :
+            '<span aria-label="Winner incorrect">L</span>';
+    }
+    let total = '';
+    if (result.total === 'win') {
+        const over = game.projection.home + game.projection.away > game.odds.total;
+        total = `<strong class="result-win" aria-label="${over ? 'Over' : 'Under'} correct">(${over ? 'O' : 'U'})</strong>`;
+    }
+    return [winner, total].filter(Boolean).map(value => ` ${value}`).join('');
+}
+
 function card(game) {
     const odds = game.odds;
     const spread = odds.spread === null ? 'Unavailable' :
@@ -73,14 +92,14 @@ function card(game) {
     else if (odds.spread > 0) matchup += `, where the home team is a ${odds.spread}-point underdog.`;
     else matchup += ' in a pick&#39;em matchup.';
     const result = gameResults(game);
-    const resultText = game.final ? `<p>Results: Winner: ${result.winner || 'N/A'}; ATS (original line): ${result.ats || 'N/A'}; ATS (favorable comparison): ${result.adjustedAts || 'N/A'}; O/U: ${result.total || 'N/A'}</p>` : '';
+    const indicators = game.final ? resultIndicators(game, result) : '';
     return `<article class="game-card" data-game-id="${escapeHtml(game.id)}">
 <h2>${away} at ${home}</h2>
 <p class="line">${spread} &nbsp; | &nbsp; O/U: ${total}</p>
 <p>Favorable comparison spread (hypothetical): ${adjustedText}</p>
 <p>${matchup}</p>
 <p><strong>Projected Score:</strong> ${game.projection ? displayScore(game, game.projection) : 'TBD'}<br>
-<strong>Final Score:</strong> ${game.final ? displayScore(game, game.final) : 'TBD'}</p>${resultText}</article>`;
+<strong>Final Score:</strong> ${game.final ? displayScore(game, game.final) : 'TBD'}${indicators}</p></article>`;
 }
 
 function renderIssue(template, issue, prefix = '') {
