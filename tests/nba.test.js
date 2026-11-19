@@ -53,6 +53,16 @@ test('model uses NFL buckets, quarter averages, rounding and NBA tie resolution'
     assert.equal(model.modelConfig({ ...configured, PG_PI2: '' }).usesFallback, true);
 });
 
+test('rounded score ties follow even tiny raw differences, with an exact tie favoring home', () => {
+    const config = model.modelConfig({ PG_PPI5: '0.0016', PG_MD: '0' });
+    const low = { gp: 4, wins: 2, pf_sum: 0, pa_sum: 0 };
+    const high = { ...low, pf_sum: 1 };
+    assert.ok(model.rawScore(high, low, config).score - model.rawScore(low, high, config).score > 0);
+    assert.deepEqual(model.projectMatchup(high, low, config), { away: 1, home: 0 });
+    assert.deepEqual(model.projectMatchup(low, high, config), { away: 0, home: 1 });
+    assert.deepEqual(model.projectMatchup(low, low, config), { away: 0, home: 1 });
+});
+
 test('rolling history takes last four distinct final games before cutoff', () => {
     const games = [
         event('1', '2026-10-01T00:00:00Z', true, 100, 110),
@@ -244,6 +254,29 @@ test('overnight score passes update the current viewport without altering predic
     assert.equal(daily.readState(root).issues.length, 2);
 });
 
+test('refreshing archived results preserves canonical predictions and validates checksums', async t => {
+    const root = temporaryRoot(t);
+    const stats = { gp: 4, wins: 3, losses: 1, pf_sum: 440, pa_sum: 420 };
+    const provider = {
+        scoreboard: async date => [event(date, `${date}T23:00:00Z`, false)],
+        teamStats: async () => ({ ...stats }),
+        mergeOdds: async () => {},
+        finalScore: async () => ({ away: 100, home: 110 })
+    };
+    await daily.run({ root, now: new Date('2026-11-15T09:41:00Z'), provider, env: {} });
+    const canonical = fs.readFileSync(path.join(root, 'nba26-001.html'), 'utf8');
+    await daily.run({ root, now: new Date('2026-11-16T06:10:00Z'), provider, env: {}, scoresOnly: true });
+    const archive = path.join(root, 'archives', '2026', 'nba26-001.html');
+    daily.refreshResults(root);
+    assert.equal(fs.readFileSync(path.join(root, 'nba26-001.html'), 'utf8'), canonical);
+    assert.match(fs.readFileSync(archive, 'utf8'), /ATS \(favorable comparison\):/);
+    assert.match(fs.readFileSync(path.join(root, 'NBATMP.htm'), 'utf8'), /favorable comparison/);
+    assert.match(fs.readFileSync(path.join(root, 'archives', '2026', 'index.html'), 'utf8'), /Against spread \(favorable comparison\)/);
+    assert.equal(daily.readState(root).issues[0].archived, true);
+    fs.appendFileSync(archive, 'tampering');
+    assert.throws(() => daily.refreshResults(root), /checksum mismatch/);
+});
+
 test('disclaimer is linked from the portal, about page, and current viewport', () => {
     const root = path.join(__dirname, '..');
     const disclaimer = fs.readFileSync(path.join(root, 'disclaimer.html'), 'utf8');
@@ -323,11 +356,35 @@ test('grading treats real and projected pushes as pushes and excludes unavailabl
         projection: { away: 100, home: 110 }, final: { away: 105, home: 110 },
         odds: { spread: -5, total: 215 }
     };
-    assert.deepEqual(publish.gameResults(game), { winner: 'win', ats: 'push', total: 'push' });
+    assert.deepEqual(publish.gameResults(game), { winner: 'win', ats: 'push', adjustedAts: 'win', total: 'push' });
     game.odds = { spread: null, total: null };
-    assert.deepEqual(publish.gameResults(game), { winner: 'win', ats: null, total: null });
+    assert.deepEqual(publish.gameResults(game), { winner: 'win', ats: null, adjustedAts: null, total: null });
     game.projection = null;
-    assert.deepEqual(publish.gameResults(game), { winner: null, ats: null, total: null });
+    assert.deepEqual(publish.gameResults(game), { winner: null, ats: null, adjustedAts: null, total: null });
+});
+
+test('favorable whole-point spreads follow the projected ATS side, or winner on a projected push', () => {
+    const game = { projection: { away: 100, home: 106 }, final: { away: 100, home: 106 }, odds: { spread: -6, total: 210 } };
+    assert.equal(publish.adjustedSpread(game), -5.5);
+    assert.equal(publish.gameResults(game).ats, 'push');
+    assert.equal(publish.gameResults(game).adjustedAts, 'win');
+    game.odds.spread = -10;
+    assert.equal(publish.adjustedSpread(game), -10.5);
+    game.final = { away: 100, home: 110 };
+    assert.equal(publish.gameResults(game).ats, 'push');
+    assert.equal(publish.gameResults(game).adjustedAts, 'win');
+    game.projection = { away: 106, home: 100 };
+    game.odds.spread = 6;
+    assert.equal(publish.adjustedSpread(game), 5.5);
+    game.odds.spread = 0;
+    assert.equal(publish.adjustedSpread(game), -0.5);
+    game.odds.spread = 5.5;
+    assert.equal(publish.adjustedSpread(game), 5.5);
+    game.odds.spread = null;
+    assert.equal(publish.adjustedSpread(game), null);
+    game.odds.spread = 0;
+    game.projection = null;
+    assert.equal(publish.adjustedSpread(game), null);
 });
 
 test('season records distinguish fallback, configured and unknown issue settings', () => {

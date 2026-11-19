@@ -82,6 +82,37 @@ function readState(root) {
     return state;
 }
 
+function viewportIssue(root, state) {
+    const viewportPath = path.join(root, VIEWPORT);
+    if (!fs.existsSync(viewportPath)) return null;
+    const viewport = fs.readFileSync(viewportPath, 'utf8');
+    const script = viewport.match(/<script\b[^>]*\bsrc="[^"]*nba-viewport\.js"[^>]*>/);
+    const date = script && script[0].match(/\bdata-date="(\d{4}-\d{2}-\d{2})"/);
+    return date ? state.issues.find(item => item.date === date[1]) : null;
+}
+
+function refreshResults(root = ROOT) {
+    const state = readState(root);
+    const outputs = new Map();
+    const seasons = new Set();
+    for (const issue of state.issues.filter(item => item.archived)) {
+        const html = publish.renderIssue(issue.template, issue, '../../');
+        issue.archive_hash = publish.hash(html);
+        outputs.set(path.join(root, 'archives', String(issue.season), publish.issueName(issue)), html);
+        seasons.add(issue.season);
+    }
+    for (const season of seasons) {
+        outputs.set(path.join(root, 'archives', String(season), 'index.html'), publish.renderSeasonIndex(season, state.issues));
+    }
+    const issue = viewportIssue(root, state);
+    if (issue && issue.games.some(game => game.final)) {
+        outputs.set(path.join(root, VIEWPORT), publish.renderIssue(issue.template, issue));
+    }
+    for (const [file, content] of outputs) publish.writeAtomic(file, content);
+    if (seasons.size) publish.writeAtomic(path.join(root, STATE), `${JSON.stringify(state, null, 2)}\n`);
+    console.log(`Refreshed results for ${state.issues.filter(item => item.archived).length} archived issues.`);
+}
+
 async function run({ root = ROOT, now = new Date(), provider = data, env = process.env, scoresOnly = false } = {}) {
     if (!Number.isFinite(now.getTime())) throw new Error('Invalid current time');
     const today = easternDate(now);
@@ -125,14 +156,8 @@ async function run({ root = ROOT, now = new Date(), provider = data, env = proce
     }
 
     if (scoresOnly) {
-        const viewportPath = path.join(root, VIEWPORT);
-        if (fs.existsSync(viewportPath)) {
-            const viewport = fs.readFileSync(viewportPath, 'utf8');
-            const script = viewport.match(/<script\b[^>]*\bsrc="[^"]*nba-viewport\.js"[^>]*>/);
-            const date = script && script[0].match(/\bdata-date="(\d{4}-\d{2}-\d{2})"/);
-            const issue = date && state.issues.find(item => item.date === date[1]);
-            if (issue) outputs.set(viewportPath, publish.renderIssue(issue.template, issue));
-        }
+        const issue = viewportIssue(root, state);
+        if (issue) outputs.set(path.join(root, VIEWPORT), publish.renderIssue(issue.template, issue));
     } else if (!state.issues.some(issue => issue.date === today)) {
         const events = await provider.scoreboard(today);
         const scheduled = events.filter(event => {
@@ -200,6 +225,7 @@ async function run({ root = ROOT, now = new Date(), provider = data, env = proce
 if (require.main === module) {
     const now = new Date();
     Promise.resolve().then(() => {
+        if (process.argv.includes('--refresh-results')) return refreshResults();
         const scoresOnly = process.argv.includes('--scores-only');
         if (scoresOnly && process.env.GITHUB_EVENT_NAME === 'schedule' &&
             !['01', '02', '03', '04'].includes(easternParts(now).hour)) {
@@ -217,4 +243,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { easternDate, easternParts, readState, run, seasonStart, shouldRunSchedule };
+module.exports = { easternDate, easternParts, readState, refreshResults, run, seasonStart, shouldRunSchedule };
