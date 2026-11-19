@@ -288,9 +288,9 @@ test('outdated viewport stays accessible with a date warning, including DST', ()
     assert.match(fallback, /src="images\/under-construction\.gif"/);
 });
 
-test('daily workflow schedules recurring publication attempts throughout the day', () => {
+test('daily workflow schedules four publication attempts three hours apart', () => {
     const workflow = fs.readFileSync(path.join(__dirname, '..', '.github', 'workflows', 'nba-daily.yml'), 'utf8');
-    assert.match(workflow, /cron: '41 9-20 \* \* \*'/);
+    assert.match(workflow, /cron: '41 9-18\/3 \* \* \*'/);
     assert.match(workflow, /workflow_dispatch:/);
     assert.match(workflow, /group: nba-daily-publication/);
 });
