@@ -161,7 +161,7 @@ test('game cards present matchup, home line and scores without exposing model in
     let html = render();
     assert.match(html, /Chicago Bulls at Brooklyn Nets/);
     assert.match(html, /BKN -2\.5 &nbsp; \| &nbsp; O\/U: 220\.5/);
-    assert.match(html, /The \(10-5\) Chicago Bulls head into \(8-7\) Brooklyn Nets, where the home team is installed as a 2\.5-point favorite/);
+    assert.match(html, /The \(10-5\) Chicago Bulls head into \(8-7\) Brooklyn Nets, where the home team is a 2\.5-point favorite for this comparison/);
     assert.match(html, /Projected Score:<\/strong> CHI 123 - BKN 95/);
     assert.match(html, /Final Score:<\/strong> TBD/);
     assert.doesNotMatch(html, /Our computer projects|Example Book|Game 1:|last four|440 scored|<table>/i);
@@ -173,8 +173,7 @@ test('game cards present matchup, home line and scores without exposing model in
     game.projection = null;
     game.final = { away: 100, home: 110 };
     html = render();
-    assert.match(html, /BKN PK &nbsp; \| &nbsp; O\/U: Unavailable/);
-    assert.match(html, /pick&#39;em matchup/);
+    assert.match(html, /Comparison spread: Unavailable &nbsp; \| &nbsp; O\/U: Unavailable/);
     assert.match(html, /Projected Score:<\/strong> TBD/);
     assert.match(html, /Final Score:<\/strong> CHI 100 - BKN 110/);
     game.odds.spread = null;
@@ -195,13 +194,13 @@ test('final score indicators distinguish winners, covers and correct totals', ()
     html = render(make({ away: 78, home: 148 }, { away: 130, home: 137 }, -12.5, 236.5));
     assert.match(html, /H 137 <span aria-label="Winner correct">W<\/span><\/p>/);
     html = render(make({ away: 134, home: 117 }, { away: 119, home: 104 }, 6.5, 224.5));
-    assert.match(html, /H 104 <strong class="result-win" aria-label="Winner and favorable spread comparison correct">W<\/strong><\/p>/);
+    assert.match(html, /H 104 <strong class="result-win" aria-label="Winner and spread prediction correct">W<\/strong><\/p>/);
     html = render(make({ away: 100, home: 106 }, { away: 105, home: 103 }, -10, 220));
-    assert.match(html, /H 103 <strong class="result-win" aria-label="Winner incorrect, favorable spread comparison correct">COVER<\/strong> <strong class="result-win" aria-label="Under correct">\(U\)<\/strong>/);
+    assert.match(html, /H 103 <strong class="result-win" aria-label="Winner incorrect, spread prediction correct">COVER<\/strong> <strong class="result-win" aria-label="Under correct">\(U\)<\/strong>/);
     html = render(make({ away: 100, home: 106 }, { away: 100, home: 103 }, -10, 220));
-    assert.match(html, /H 103 <strong class="result-win" aria-label="Winner and favorable spread comparison correct">W<\/strong>/);
+    assert.match(html, /H 103 <strong class="result-win" aria-label="Winner and spread prediction correct">W<\/strong>/);
     html = render(make({ away: 100, home: 106 }, { away: 100, home: 106 }, -6, 206));
-    assert.match(html, /H 106 <strong class="result-win" aria-label="Winner and favorable spread comparison correct">W<\/strong><\/p>/);
+    assert.match(html, /H 106 <strong class="result-win" aria-label="Winner and spread prediction correct">W<\/strong><\/p>/);
     html = render(make({ away: 100, home: 106 }, { away: 100, home: 106 }, null, null));
     assert.match(html, /H 106 <span aria-label="Winner correct">W<\/span><\/p>/);
     html = render(make(null, { away: 100, home: 106 }, -6, 206));
@@ -209,6 +208,23 @@ test('final score indicators distinguish winners, covers and correct totals', ()
     html = render(make({ away: 100, home: 106 }, null, -6, 206));
     assert.match(html, /Final Score:<\/strong> TBD<\/p>/);
     assert.doesNotMatch(html, /aria-label="Winner|aria-label="Over|aria-label="Under/);
+});
+
+test('public issue and season records use the displayed comparison spread only', () => {
+    const game = {
+        id: '1', away: { name: 'Away', abbreviation: 'A' }, home: { name: 'Home', abbreviation: 'H' },
+        projection: { away: 100, home: 106 }, final: { away: 100, home: 106 },
+        odds: { spread: -6, total: 210 }
+    };
+    const issue = { games: [game], date: '2026-11-18', number: 1, season: 2026, archived: true };
+    const html = publish.renderIssue('<!-- GAME-CARDS -->', issue);
+    assert.match(html, /Comparison spread: H -5\.5/);
+    assert.match(html, /Against the spread: 1-0-0/);
+    assert.doesNotMatch(html, /favorable|original|hypothetical/i);
+    const index = publish.renderSeasonIndex(2026, [issue]);
+    assert.match(index, /<th>Against the spread<\/th>/);
+    assert.match(index, /Issue 1\)<\/a><\/td><td>1-0-0\?<\/td><td>1-0-0\?<\/td>/);
+    assert.doesNotMatch(index, /favorable|original|hypothetical/i);
 });
 
 test('previous daily viewport remains visible until 04:30 Eastern, including DST', () => {
@@ -299,8 +315,8 @@ test('refreshing archived results preserves canonical predictions and validates 
     assert.equal(fs.readFileSync(path.join(root, 'nba26-001.html'), 'utf8'), canonical);
     assert.match(fs.readFileSync(archive, 'utf8'), /Final Score:<\/strong> A 100 - H 110/);
     assert.doesNotMatch(fs.readFileSync(archive, 'utf8'), /<p>Results:/);
-    assert.match(fs.readFileSync(path.join(root, 'NBATMP.htm'), 'utf8'), /favorable comparison/);
-    assert.match(fs.readFileSync(path.join(root, 'archives', '2026', 'index.html'), 'utf8'), /Against spread \(favorable comparison\)/);
+    assert.match(fs.readFileSync(path.join(root, 'NBATMP.htm'), 'utf8'), /Against the spread:/);
+    assert.match(fs.readFileSync(path.join(root, 'archives', '2026', 'index.html'), 'utf8'), /Against the spread<\/th>/);
     assert.equal(daily.readState(root).issues[0].archived, true);
     fs.appendFileSync(archive, 'tampering');
     assert.throws(() => daily.refreshResults(root), /checksum mismatch/);

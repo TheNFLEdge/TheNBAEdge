@@ -60,11 +60,11 @@ function resultIndicators(game, result) {
     let winner = '';
     if (result.winner === 'win') {
         winner = result.adjustedAts === 'win' ?
-            '<strong class="result-win" aria-label="Winner and favorable spread comparison correct">W</strong>' :
+            '<strong class="result-win" aria-label="Winner and spread prediction correct">W</strong>' :
             '<span aria-label="Winner correct">W</span>';
     } else if (result.winner === 'loss') {
         winner = result.adjustedAts === 'win' ?
-            '<strong class="result-win" aria-label="Winner incorrect, favorable spread comparison correct">COVER</strong>' :
+            '<strong class="result-win" aria-label="Winner incorrect, spread prediction correct">COVER</strong>' :
             '<span aria-label="Winner incorrect">L</span>';
     }
     let total = '';
@@ -77,26 +77,23 @@ function resultIndicators(game, result) {
 
 function card(game) {
     const odds = game.odds;
-    const spread = odds.spread === null ? 'Unavailable' :
-        `${escapeHtml(game.home.abbreviation)} ${odds.spread > 0 ? '+' : ''}${odds.spread === 0 ? 'PK' : odds.spread}`;
     const total = odds.total === null ? 'Unavailable' : String(odds.total);
     const adjusted = adjustedSpread(game);
-    const adjustedText = adjusted === null ? 'Unavailable' :
+    const spread = adjusted === null ? 'Unavailable' :
         `${escapeHtml(game.home.abbreviation)} ${adjusted > 0 ? '+' : ''}${adjusted}`;
     const away = escapeHtml(game.away.name);
     const home = escapeHtml(game.home.name);
     const record = team => team.record ? `(${escapeHtml(team.record)}) ` : '';
     let matchup = `The ${record(game.away)}${away} head into ${record(game.home)}${home}`;
-    if (odds.spread === null) matchup += '.';
-    else if (odds.spread < 0) matchup += `, where the home team is installed as a ${Math.abs(odds.spread)}-point favorite.`;
-    else if (odds.spread > 0) matchup += `, where the home team is a ${odds.spread}-point underdog.`;
+    if (adjusted === null) matchup += '.';
+    else if (adjusted < 0) matchup += `, where the home team is a ${Math.abs(adjusted)}-point favorite for this comparison.`;
+    else if (adjusted > 0) matchup += `, where the home team is a ${adjusted}-point underdog for this comparison.`;
     else matchup += ' in a pick&#39;em matchup.';
     const result = gameResults(game);
     const indicators = game.final ? resultIndicators(game, result) : '';
     return `<article class="game-card" data-game-id="${escapeHtml(game.id)}">
 <h2>${away} at ${home}</h2>
-<p class="line">${spread} &nbsp; | &nbsp; O/U: ${total}</p>
-<p>Favorable comparison spread (hypothetical): ${adjustedText}</p>
+<p class="line">Comparison spread: ${spread} &nbsp; | &nbsp; O/U: ${total}</p>
 <p>${matchup}</p>
 <p><strong>Projected Score:</strong> ${game.projection ? displayScore(game, game.projection) : 'TBD'}<br>
 <strong>Final Score:</strong> ${game.final ? displayScore(game, game.final) : 'TBD'}${indicators}</p></article>`;
@@ -129,9 +126,10 @@ function renderIssue(template, issue, prefix = '') {
     const finished = issue.games.filter(game => game.final).length;
     if (finished) {
         const totals = summarize(issue);
-        cards.unshift(`<section class="game-card" aria-label="Projection results"><h2>Projection results</h2><p>Final games: ${finished} of ${issue.games.length}. Records are wins-losses-pushes; games without a projection or line are excluded. The favorable comparison moves whole-point spreads by half a point toward the projected spread pick; it is hypothetical, not the original betting line.</p><p>Winners: ${recordString(totals.winner)} &nbsp; | &nbsp; Against the spread (original): ${recordString(totals.ats)} &nbsp; | &nbsp; Against the spread (favorable comparison): ${recordString(totals.adjustedAts)} &nbsp; | &nbsp; Over/under: ${recordString(totals.total)}</p></section>`);
+        cards.unshift(`<section class="game-card" aria-label="Projection results"><h2>Projection results</h2><p>Final games: ${finished} of ${issue.games.length}. Records are wins-losses-pushes; games without a projection or line are excluded.</p><p>Winners: ${recordString(totals.winner)} &nbsp; | &nbsp; Against the spread: ${recordString(totals.adjustedAts)} &nbsp; | &nbsp; Over/under: ${recordString(totals.total)}</p></section>`);
     }
-    return template.replaceAll('{{ROOT}}', prefix)
+    return template.replace('Lines are snapshots and may change.', 'Comparison spreads may differ from available betting lines.')
+        .replaceAll('{{ROOT}}', prefix)
         .replaceAll('{{DATE}}', escapeHtml(issue.date))
         .replaceAll('{{ISSUE}}', `Issue ${issue.number} &middot; ${issue.season}&ndash;${String(issue.season + 1).slice(-2)} season`)
         .replace('<!-- GAME-CARDS -->', cards.join('\n') || '<p class="game-card">No upcoming NBA games found for this date.</p>')
@@ -146,11 +144,11 @@ function renderSeasonIndex(season, issues) {
         const sum = summarize(issue);
         for (const name of Object.keys(totals)) for (const outcomeName of ['win', 'loss', 'push']) totals[name][outcomeName] += sum[name][outcomeName];
         const mark = marker(issue);
-        return `<tr><td><a href="${issueName(issue)}">${escapeHtml(issue.date)} (Issue ${issue.number})</a></td><td>${recordString(sum.winner)}${mark}</td><td>${recordString(sum.ats)}${mark}</td><td>${recordString(sum.adjustedAts)}${mark}</td><td>${recordString(sum.total)}${mark}</td></tr>`;
+        return `<tr><td><a href="${issueName(issue)}">${escapeHtml(issue.date)} (Issue ${issue.number})</a></td><td>${recordString(sum.winner)}${mark}</td><td>${recordString(sum.adjustedAts)}${mark}</td><td>${recordString(sum.total)}${mark}</td></tr>`;
     });
     const totalMark = (complete.some(issue => marker(issue) === '*') ? '*' : '') + (complete.some(issue => marker(issue) === '?') ? '?' : '');
-    rows.push(`<tr><th>Season total</th><th>${recordString(totals.winner)}${totalMark}</th><th>${recordString(totals.ats)}${totalMark}</th><th>${recordString(totals.adjustedAts)}${totalMark}</th><th>${recordString(totals.total)}${totalMark}</th></tr>`);
-    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${season} NBA archives</title><link rel="stylesheet" href="../../nba.css"></head><body><main class="page"><header class="header"><p><a href="../../index.html">Home</a> &middot; <a href="../index.html">All archives</a></p><h1>${season}&ndash;${String(season + 1).slice(-2)} archives</h1><p>Records are wins-losses-pushes. Games without a projection or line are excluded from the relevant record. The favorable spread comparison is hypothetical: whole-point lines move half a point toward the projected spread pick, and other lines are unchanged.</p></header><div class="game-card table-wrap"><table><thead><tr><th>Issue</th><th>Winner</th><th>Against spread (original)</th><th>Against spread (favorable comparison)</th><th>Over/under</th></tr></thead><tbody>${rows.join('\n')}</tbody></table></div></main></body></html>\n`;
+    rows.push(`<tr><th>Season total</th><th>${recordString(totals.winner)}${totalMark}</th><th>${recordString(totals.adjustedAts)}${totalMark}</th><th>${recordString(totals.total)}${totalMark}</th></tr>`);
+    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${season} NBA archives</title><link rel="stylesheet" href="../../nba.css"></head><body><main class="page"><header class="header"><p><a href="../../index.html">Home</a> &middot; <a href="../index.html">All archives</a></p><h1>${season}&ndash;${String(season + 1).slice(-2)} archives</h1><p>Records are wins-losses-pushes. Games without a projection or line are excluded from the relevant record. Comparison spreads may differ from available betting lines.</p></header><div class="game-card table-wrap"><table><thead><tr><th>Issue</th><th>Winner</th><th>Against the spread</th><th>Over/under</th></tr></thead><tbody>${rows.join('\n')}</tbody></table></div></main></body></html>\n`;
 }
 
 function renderArchivesIndex(issues) {
