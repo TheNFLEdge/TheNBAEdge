@@ -143,12 +143,19 @@ async function finalScore(matchup) {
 }
 
 async function mergeOdds(matchups, key) {
-    if (!key || !matchups.some(game => game.odds.spread === null || game.odds.total === null)) return;
+    if (!key || matchups.some(game => game.odds.spread !== null || game.odds.total !== null)) return;
     const url = new URL(`${ODDS_BASE.replace(/\/$/, '')}/sports/basketball_nba/odds`);
     url.searchParams.set('apiKey', key);
     url.searchParams.set('regions', 'us');
     url.searchParams.set('markets', 'spreads,totals');
-    const events = await requestJson(url);
+    let events;
+    try {
+        events = await requestJson(url);
+    } catch (error) {
+        if (!(error instanceof ProviderUnavailableError)) throw error;
+        console.warn(`Warning: odds are unavailable; publishing with TBD lines: ${error.message}`);
+        return;
+    }
     if (!Array.isArray(events)) throw new Error('Odds API response is not an array');
     for (const game of matchups) {
         const found = events.filter(event => event.away_team === game.away.name && event.home_team === game.home.name &&

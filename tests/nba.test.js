@@ -89,6 +89,41 @@ test('ESPN lines are interpreted as home handicap and missing data is not zero',
     assert.deepEqual(data.parseMatchup(e).odds, { spread: 0, total: 0, source: 'ESPN' });
 });
 
+test('partial slates skip the odds lookup; an entirely missing slate uses a nonblocking fallback', async t => {
+    const originalFetch = global.fetch;
+    const originalWarn = console.warn;
+    t.after(() => { global.fetch = originalFetch; console.warn = originalWarn; });
+    const warnings = [];
+    console.warn = message => warnings.push(message);
+    let calls = 0;
+    global.fetch = async () => { calls++; throw new Error('network unavailable'); };
+    const partial = [
+        { odds: { spread: -3.5, total: null } },
+        { odds: { spread: null, total: null } }
+    ];
+    await data.mergeOdds(partial, 'key');
+    assert.equal(calls, 0);
+    assert.deepEqual(partial[1].odds, { spread: null, total: null });
+    const missing = [{ odds: { spread: null, total: null } }];
+    await data.mergeOdds(missing, 'key');
+    assert.equal(calls, 1);
+    assert.deepEqual(missing[0].odds, { spread: null, total: null });
+    assert.match(warnings[0], /publishing with TBD lines/);
+
+    global.fetch = async () => ({ ok: true, json: async () => [{
+        away_team: 'Away', home_team: 'Home', commence_time: '2026-11-20T23:00:00Z',
+        bookmakers: [{ title: 'Book', markets: [
+            { key: 'spreads', outcomes: [{ name: 'Home', point: -4.5 }] },
+            { key: 'totals', outcomes: [{ name: 'Over', point: 220.5 }] }
+        ] }]
+    }] });
+    const game = { date: '2026-11-20T23:00:00Z', away: { name: 'Away' }, home: { name: 'Home' }, odds: { spread: null, total: null, source: null } };
+    await data.mergeOdds([game], 'key');
+    assert.deepEqual(game.odds, { spread: -4.5, total: 220.5, source: 'Book' });
+    global.fetch = async () => ({ ok: true, json: async () => ({}) });
+    await assert.rejects(data.mergeOdds(missing, 'key'), /not an array/);
+});
+
 test('issue template intersperses all three ads and resolves artwork for current and archived issues', () => {
     const root = path.join(__dirname, '..');
     const template = fs.readFileSync(path.join(root, 'nba-template.htm'), 'utf8');
@@ -145,6 +180,9 @@ test('legacy issue templates retain their original sponsor layout', () => {
     };
     assert.match(publish.renderIssue(template, { date: '2026-11-15', number: 1, season: 2026, games: [game] }),
         /<\/article>\s*<section>Original sponsors<\/section>/);
+    const root = path.join(__dirname, '..');
+    const archived = daily.readState(root).issues.find(issue => issue.archived);
+    assert.equal(publish.hash(publish.renderIssue(archived.template, archived, '../../')), archived.archive_hash);
 });
 
 test('game cards present matchup, home line and scores without exposing model inputs or line source', () => {
@@ -161,25 +199,31 @@ test('game cards present matchup, home line and scores without exposing model in
     let html = render();
     assert.match(html, /Chicago Bulls at Brooklyn Nets/);
     assert.match(html, /BKN -2\.5 &nbsp; \| &nbsp; O\/U: 220\.5/);
-    assert.match(html, /The \(10-5\) Chicago Bulls head into \(8-7\) Brooklyn Nets, where the home team is a 2\.5-point favorite for this comparison/);
+    assert.match(html, /The \(10-5\) Chicago Bulls head into \(8-7\) Brooklyn Nets, where the home team is a 2\.5-point favorite and the total has been set for 220\.5\./);
     assert.match(html, /Projected Score:<\/strong> CHI 123 - BKN 95/);
     assert.match(html, /Final Score:<\/strong> TBD/);
     assert.doesNotMatch(html, /Our computer projects|Example Book|Game 1:|last four|440 scored|<table>/i);
     game.odds.spread = 3.5;
     html = render();
     assert.match(html, /BKN \+3\.5/);
-    assert.match(html, /home team is a 3\.5-point underdog/);
+    assert.match(html, /home team is a 3\.5-point underdog and the total has been set for 220\.5/);
     game.odds = { spread: 0, total: null, source: null };
     game.projection = null;
     game.final = { away: 100, home: 110 };
     html = render();
-    assert.match(html, /Comparison spread: Unavailable &nbsp; \| &nbsp; O\/U: Unavailable/);
+    assert.match(html, /Comparison spread: BKN 0 &nbsp; \| &nbsp; O\/U: TBD/);
+    assert.match(html, /pick&#39;em matchup and the total is TBD\./);
     assert.match(html, /Projected Score:<\/strong> TBD/);
     assert.match(html, /Final Score:<\/strong> CHI 100 - BKN 110/);
     game.odds.spread = null;
     game.away.record = null;
     game.home.record = null;
-    assert.match(render(), /The Chicago Bulls head into Brooklyn Nets\./);
+    assert.match(render(), /The Chicago Bulls head into Brooklyn Nets, where the point spread is TBD and the total is TBD\./);
+    game.odds.total = 220.5;
+    assert.match(render(), /point spread is TBD and the total has been set for 220\.5\./);
+    game.odds.spread = -2.5;
+    game.odds.total = null;
+    assert.match(render(), /2\.5-point favorite and the total is TBD\./);
 });
 
 test('final score indicators distinguish winners, covers and correct totals', () => {
@@ -223,7 +267,7 @@ test('public issue and season records use the displayed comparison spread only',
     assert.doesNotMatch(html, /favorable|original|hypothetical/i);
     const index = publish.renderSeasonIndex(2026, [issue]);
     assert.match(index, /<th>Against the spread<\/th>/);
-    assert.match(index, /Issue 1\)<\/a><\/td><td>1-0-0\?<\/td><td>1-0-0\?<\/td>/);
+    assert.match(index, /Issue 1\)<\/a><\/td><td>1-0-0\?<\/td><td><\/td><td>1-0-0\?<\/td>/);
     assert.doesNotMatch(index, /favorable|original|hypothetical/i);
 });
 
@@ -311,6 +355,7 @@ test('Greggy Feesh Thanksgiving sponsor matches the NFL seasonal banner', () => 
     assert.match(seasonal, /background:#f28b21/);
     assert.match(seasonal, /background:#e46aff/);
     assert.match(seasonal, /height:clamp\(210px, 27vw, 250px\)/);
+    assert.match(seasonal, /object-position:center 40%; display:block; margin:0 auto;/);
     assert.match(renderDate('2026-11-30'), /gfeesh-thanksgiving-ad\.jpg/);
     const regular = renderDate('2026-12-01');
     const regularSponsor = regular.match(/<article class="sponsor sponsor-feesh"[\s\S]*?<\/article>/)?.[0];
@@ -399,9 +444,10 @@ test('disclaimer is linked from the portal, about page, and current viewport', (
     assert.match(disclaimer, /First Amendment/);
     assert.match(disclaimer, /whether a particular use qualifies depends on the circumstances/i);
     assert.match(disclaimer, /actual final scores and compare them with our projections/);
-    for (const name of ['index.html', 'about.html', 'NBATMP.htm']) {
+    for (const name of ['index.html', 'about.html', 'NBATMP.htm', 'nba-unavailable.html']) {
         assert.match(fs.readFileSync(path.join(root, name), 'utf8'), /href="disclaimer\.html"/, name);
     }
+    assert.match(fs.readFileSync(path.join(root, 'nba-template.htm'), 'utf8'), /href="\{\{ROOT\}\}disclaimer\.html"/);
 });
 
 test('generated archive index preserves local classic season links', () => {
@@ -412,7 +458,10 @@ test('generated archive index preserves local classic season links', () => {
         '2015/index.html', '2016/index.html', '2017/index.html']) {
         assert.ok(html.includes(`href="${href}"`), href);
         assert.ok(fs.existsSync(path.join(root, 'archives', ...href.split('/'))), href);
+        assert.match(fs.readFileSync(path.join(root, 'archives', ...href.split('/')), 'utf8'), /href="\.\.\/\.\.\/disclaimer\.html"/);
     }
+    assert.match(html, /href="\.\.\/disclaimer\.html"/);
+    assert.match(require('../tools/build-classic-archives').seasonIndex('2013', []), /href="\.\.\/\.\.\/disclaimer\.html"/);
     assert.equal(fs.readFileSync(path.join(root, 'archives', 'index.html'), 'utf8'),
         publish.renderArchivesIndex(daily.readState(root).issues));
 });
@@ -514,6 +563,45 @@ test('season records distinguish fallback, configured and unknown issue settings
     assert.doesNotMatch(html, /fallback model settings|Model settings were not recorded/);
     const configuredOnly = publish.renderSeasonIndex(2026, [issue(2, 'configured')]);
     assert.doesNotMatch(configuredOnly, /fallback model settings|Model settings were not recorded/);
+});
+
+test('season percentages count wins and losses but exclude pushes and missing records', () => {
+    const game = (finalHome, spread = -0.5) => ({
+        projection: { away: 100, home: 110 }, final: { away: 100, home: finalHome },
+        odds: { spread, total: null }
+    });
+    const games = [
+        ...Array.from({ length: 10 }, () => game(110)),
+        ...Array.from({ length: 6 }, () => game(90)),
+        game(100, null)
+    ];
+    const issue = { season: 2026, number: 1, date: '2026-11-18', archived: true, model_source: 'configured', games };
+    const html = publish.renderSeasonIndex(2026, [issue]);
+    assert.match(html, /Season total<\/th><th>10-6-1<\/th><td>62\.50%<\/td><th>10-6-0<\/th><td>62\.50%<\/td>/);
+    assert.match(publish.renderSeasonIndex(2026, []), /Season total<\/th><th>0-0-0<\/th><td>N\/A<\/td><th>0-0-0<\/th><td>N\/A<\/td>/);
+    assert.match(html, /href="\.\.\/\.\.\/disclaimer\.html"/);
+});
+
+test('missing individual lines do not block daily publication', async t => {
+    const root = temporaryRoot(t);
+    const stats = { gp: 4, wins: 2, losses: 2, pf_sum: 440, pa_sum: 440 };
+    const first = event('1', '2026-11-20T23:00:00Z', false);
+    const second = event('2', '2026-11-20T23:30:00Z', false);
+    first.competitions[0].odds[0].overUnder = null;
+    second.competitions[0].odds = [];
+    const provider = {
+        scoreboard: async () => [first, second],
+        teamStats: async () => stats,
+        mergeOdds: data.mergeOdds
+    };
+    const originalFetch = global.fetch;
+    t.after(() => { global.fetch = originalFetch; });
+    global.fetch = async () => { throw new Error('partial slate must not request odds'); };
+    await daily.run({ root, now: new Date('2026-11-20T10:00:00Z'), provider, env: { ODDS_API_KEY: 'key' } });
+    const html = fs.readFileSync(path.join(root, 'NBATMP.htm'), 'utf8');
+    assert.match(html, /home team is a 3\.5-point favorite and the total is TBD/);
+    assert.match(html, /point spread is TBD and the total is TBD/);
+    assert.equal(daily.readState(root).issues[0].games.length, 2);
 });
 
 test('Eastern dates and season rollover honor daylight saving time', () => {

@@ -75,20 +75,29 @@ function resultIndicators(game, result) {
     return [winner, total].filter(Boolean).map(value => ` ${value}`).join('');
 }
 
-function card(game) {
+function card(game, modern = false) {
     const odds = game.odds;
-    const total = odds.total === null ? 'Unavailable' : String(odds.total);
-    const adjusted = adjustedSpread(game);
-    const spread = adjusted === null ? 'Unavailable' :
+    const total = odds.total === null ? (modern ? 'TBD' : 'Unavailable') : String(odds.total);
+    const comparison = adjustedSpread(game);
+    const adjusted = modern && comparison === null ? odds.spread : comparison;
+    const spread = adjusted === null ? (modern ? 'TBD' : 'Unavailable') :
         `${escapeHtml(game.home.abbreviation)} ${adjusted > 0 ? '+' : ''}${adjusted}`;
     const away = escapeHtml(game.away.name);
     const home = escapeHtml(game.home.name);
     const record = team => team.record ? `(${escapeHtml(team.record)}) ` : '';
     let matchup = `The ${record(game.away)}${away} head into ${record(game.home)}${home}`;
-    if (adjusted === null) matchup += '.';
-    else if (adjusted < 0) matchup += `, where the home team is a ${Math.abs(adjusted)}-point favorite for this comparison.`;
-    else if (adjusted > 0) matchup += `, where the home team is a ${adjusted}-point underdog for this comparison.`;
-    else matchup += ' in a pick&#39;em matchup.';
+    if (modern) {
+        if (adjusted === null) matchup += ', where the point spread is TBD';
+        else if (adjusted < 0) matchup += `, where the home team is a ${Math.abs(adjusted)}-point favorite`;
+        else if (adjusted > 0) matchup += `, where the home team is a ${adjusted}-point underdog`;
+        else matchup += ' in a pick&#39;em matchup';
+        matchup += odds.total === null ? ' and the total is TBD.' : ` and the total has been set for ${total}.`;
+    } else {
+        if (adjusted === null) matchup += '.';
+        else if (adjusted < 0) matchup += `, where the home team is a ${Math.abs(adjusted)}-point favorite for this comparison.`;
+        else if (adjusted > 0) matchup += `, where the home team is a ${adjusted}-point underdog for this comparison.`;
+        else matchup += ' in a pick&#39;em matchup.';
+    }
     const result = gameResults(game);
     const indicators = game.final ? resultIndicators(game, result) : '';
     return `<article class="game-card" data-game-id="${escapeHtml(game.id)}">
@@ -100,6 +109,7 @@ function card(game) {
 }
 
 function renderIssue(template, issue, prefix = '') {
+    const modern = template.includes('<!-- MATCHUP-WORDING-V2 -->');
     const year = Number(issue.date.slice(0, 4));
     const thanksgiving = new Date(Date.UTC(year, 10, 1));
     thanksgiving.setUTCDate(1 + ((4 - thanksgiving.getUTCDay() + 7) % 7) + 21);
@@ -113,7 +123,7 @@ function renderIssue(template, issue, prefix = '') {
     const feeshAdPath = `${prefix}images/${feeshAd}`;
     const feeshAdContent = isThanksgivingWindow
         ? `<div style="position:relative; padding-bottom:55px; background:linear-gradient(rgba(33,23,42,.72), rgba(33,23,42,.72)), url('${feeshAdPath}') center 40% / cover;">
-        <img src="${feeshAdPath}" alt="Greggy FEESH and the Phlops celebrate Thanksgiving" loading="lazy" style="width:min(100%, 490px); height:clamp(210px, 27vw, 250px); max-width:none; object-fit:cover; object-position:center 40%; display:block;">
+        <img src="${feeshAdPath}" alt="Greggy FEESH and the Phlops celebrate Thanksgiving" loading="lazy" style="width:min(100%, 490px); height:clamp(210px, 27vw, 250px); max-width:none; object-fit:cover; object-position:center 40%; display:block;${modern ? ' margin:0 auto;' : ''}">
         <div style="position:absolute; bottom:0; left:0; right:0; display:flex; flex-wrap:wrap; justify-content:center; gap:10px; padding:22px 12px 12px; background:linear-gradient(transparent, rgba(33,23,42,.95)); font-family:Arial, sans-serif;">
             <a href="https://distrokid.com/hyperfollow/greggyfeeshandthephlops/pumpkin-pie-feat-g-pan?ref=release" target="_blank" rel="noopener noreferrer" style="flex:0 1 auto; min-width:0; padding:12px; border-radius:6px; background:#f28b21; color:#21172a; font-size:clamp(12px, 3vw, 16px); font-weight:700; text-align:center; text-decoration:none;">Pumpkin Pie (feat. G Pan)</a>
             <a href="https://distrokid.com/hyperfollow/greggyfeeshandthephlops/the-thanksgiving?ref=release" target="_blank" rel="noopener noreferrer" style="flex:0 1 auto; min-width:0; padding:12px; border-radius:6px; background:#e46aff; color:#21172a; font-size:clamp(12px, 3vw, 16px); font-weight:700; text-align:center; text-decoration:none;">The Thanksgiving</a>
@@ -134,7 +144,7 @@ function renderIssue(template, issue, prefix = '') {
     const feeshAdArticleStyle = isThanksgivingWindow
         ? ''
         : 'style="padding:0;background:#fff;border-color:#fff"';
-    let cards = issue.games.map(card);
+    let cards = issue.games.map(game => card(game, modern));
     const definitions = /<!-- SPONSOR-DEFINITIONS-START -->([\s\S]*?)<!-- SPONSOR-DEFINITIONS-END -->/;
     const match = template.match(definitions);
     if (match) {
@@ -165,6 +175,7 @@ function renderIssue(template, issue, prefix = '') {
         cards.unshift(`<section class="game-card" aria-label="Projection results"><h2>Projection results</h2><p>Final games: ${finished} of ${issue.games.length}. Records are wins-losses-pushes; games without a projection or line are excluded.</p><p>Winners: ${recordString(totals.winner)} &nbsp; | &nbsp; Against the spread: ${recordString(totals.adjustedAts)} &nbsp; | &nbsp; Over/under: ${recordString(totals.total)}</p></section>`);
     }
     return template.replace('Lines are snapshots and may change.', 'Comparison spreads may differ from available betting lines.')
+        .replace('<!-- MATCHUP-WORDING-V2 -->', '')
         .replaceAll('{{ROOT}}', prefix)
         .replaceAll('{{DATE}}', escapeHtml(issue.date))
         .replaceAll('{{ISSUE}}', `Issue ${issue.number} &middot; ${issue.season}&ndash;${String(issue.season + 1).slice(-2)} season`)
@@ -180,18 +191,19 @@ function renderSeasonIndex(season, issues) {
         const sum = summarize(issue);
         for (const name of Object.keys(totals)) for (const outcomeName of ['win', 'loss', 'push']) totals[name][outcomeName] += sum[name][outcomeName];
         const mark = marker(issue);
-        return `<tr><td><a href="${issueName(issue)}">${escapeHtml(issue.date)} (Issue ${issue.number})</a></td><td>${recordString(sum.winner)}${mark}</td><td>${recordString(sum.adjustedAts)}${mark}</td><td>${recordString(sum.total)}${mark}</td></tr>`;
+        return `<tr><td><a href="${issueName(issue)}">${escapeHtml(issue.date)} (Issue ${issue.number})</a></td><td>${recordString(sum.winner)}${mark}</td><td></td><td>${recordString(sum.adjustedAts)}${mark}</td><td></td><td>${recordString(sum.total)}${mark}</td></tr>`;
     });
     const totalMark = (complete.some(issue => marker(issue) === '*') ? '*' : '') + (complete.some(issue => marker(issue) === '?') ? '?' : '');
-    rows.push(`<tr><th>Season total</th><th>${recordString(totals.winner)}${totalMark}</th><th>${recordString(totals.adjustedAts)}${totalMark}</th><th>${recordString(totals.total)}${totalMark}</th></tr>`);
-    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${season} NBA archives</title><link rel="stylesheet" href="../../nba.css"></head><body><main class="page"><header class="header"><p><a href="../../index.html">Home</a> &middot; <a href="../index.html">All archives</a></p><h1>${season}&ndash;${String(season + 1).slice(-2)} archives</h1><p>Records are wins-losses-pushes. Games without a projection or line are excluded from the relevant record. Comparison spreads may differ from available betting lines.</p></header><div class="game-card table-wrap"><table><thead><tr><th>Issue</th><th>Winner</th><th>Against the spread</th><th>Over/under</th></tr></thead><tbody>${rows.join('\n')}</tbody></table></div></main></body></html>\n`;
+    const percentage = record => record.win + record.loss ? `${(100 * record.win / (record.win + record.loss)).toFixed(2)}%` : 'N/A';
+    rows.push(`<tr><th>Season total</th><th>${recordString(totals.winner)}${totalMark}</th><td>${percentage(totals.winner)}</td><th>${recordString(totals.adjustedAts)}${totalMark}</th><td>${percentage(totals.adjustedAts)}</td><th>${recordString(totals.total)}${totalMark}</th></tr>`);
+    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${season} NBA archives</title><link rel="stylesheet" href="../../nba.css"></head><body><main class="page"><header class="header"><p><a href="../../index.html">Home</a> &middot; <a href="../index.html">All archives</a> &middot; <a href="../../disclaimer.html">Disclaimer</a></p><h1>${season}&ndash;${String(season + 1).slice(-2)} archives</h1><p>Records are wins-losses-pushes. Games without a projection or line are excluded from the relevant record. Season percentages exclude pushes. Comparison spreads may differ from available betting lines.</p></header><div class="game-card table-wrap"><table><thead><tr><th>Issue</th><th>Winner</th><th aria-label="Winner percentage"></th><th>Against the spread</th><th aria-label="Against the spread percentage"></th><th>Over/under</th></tr></thead><tbody>${rows.join('\n')}</tbody></table></div></main></body></html>\n`;
 }
 
 function renderArchivesIndex(issues) {
     const seasons = [...new Set(issues.filter(issue => issue.archived).map(issue => issue.season))].sort((a, b) => b - a);
     const links = seasons.map(season => `<li><a href="${season}/index.html">${season}&ndash;${String(season + 1).slice(-2)} season</a></li>`).join('\n');
     const classic = [2017, 2016, 2015, 2014, 2013, 2012, 2011].map(year => `<li><a href="${year}/index.html">${year} classic issues</a></li>`).join('\n');
-    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>NBA archives</title><link rel="stylesheet" href="../nba.css"></head><body><main class="page"><header class="header"><p><a href="../index.html">Home</a> &middot; <a href="../NBATMP.htm">Today's projections</a></p><p class="eyebrow">The NBA Edge</p><h1>NBA archives</h1><p>Explore completed daily issues and a selection from the classic NBA Edge.</p></header><section class="game-card archive-list"><h2>Daily issue archives</h2>${links ? `<ul>${links}</ul>` : '<p>No completed daily issues yet.</p>'}</section><section class="game-card archive-list"><h2>Classic NBA Edge</h2><p>Explore preserved historical issues and season records. Historical projections and results are presented as published and do not represent current performance.</p><ul>${classic}</ul></section></main></body></html>\n`;
+    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>NBA archives</title><link rel="stylesheet" href="../nba.css"></head><body><main class="page"><header class="header"><p><a href="../index.html">Home</a> &middot; <a href="../NBATMP.htm">Today's projections</a> &middot; <a href="../disclaimer.html">Disclaimer</a></p><p class="eyebrow">The NBA Edge</p><h1>NBA archives</h1><p>Explore completed daily issues and a selection from the classic NBA Edge.</p></header><section class="game-card archive-list"><h2>Season archives</h2>${links ? `<ul>${links}</ul>` : '<p>No completed daily issues yet.</p>'}</section><section class="game-card archive-list"><h2>Classic NBA Edge</h2><p>Explore preserved historical issues and season records. Historical projections and results are presented as published and do not represent current performance.</p><ul>${classic}</ul></section></main></body></html>\n`;
 }
 
 function writeAtomic(file, content) {
