@@ -50,6 +50,10 @@ h2 { line-height: 1.2; }
 .portal-card p { color: var(--muted); }
 .approach-band { padding: 58px 0; background: #0b1c2e; border-block: 1px solid var(--border); }
 .approach-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; align-items: start; }
+.approach-band h2 { margin-bottom: 12px; color: #7bc8ff; }
+.approach-subtitle { margin: 0; color: var(--ink); font-size: clamp(18px, 2vw, 22px); line-height: 1.35; }
+.legacy-basketball { display: block; width: 108px; height: 108px; margin: 24px auto 0; animation: basketball-bounce 1.8s ease-in-out infinite; }
+@keyframes basketball-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-14px); } }
 .approach-grid p:not(.eyebrow) { margin-top: 0; color: #c6d6e5; }
 .sponsor-stack { display: grid; gap: 16px; margin-top: 24px; }
 .sponsor { overflow: hidden; padding: clamp(20px, 4vw, 32px); border: 1px solid #39526d; border-radius: 10px; color: #fff; }
@@ -83,6 +87,7 @@ h2 { line-height: 1.2; }
 .line { color: #92d3ff; font: 700 14px/1.4 Arial, sans-serif; }
 table { width: 100%; border-collapse: collapse; font-size: 16px; }
 td, th { padding: 10px 8px; border-top: 1px solid #35516c; text-align: left; }
+.season-table thead th { vertical-align: bottom; }
 .table-wrap { margin-top: 48px; overflow-x: auto; }
 .archive-list { margin-top: 36px; }
 .classic-issue { margin-top: 36px; overflow-wrap: anywhere; }
@@ -119,4 +124,4 @@ td, th { padding: 10px 8px; border-top: 1px solid #35516c; text-align: left; }
     .sponsor-logo, .liberty-logo { flex-basis: auto; }
     .site-footer span { float: none; display: block; margin-top: 10px; }
 }
-@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .legacy-basketball { animation: none; } }

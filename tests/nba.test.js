@@ -266,7 +266,8 @@ test('public issue and season records use the displayed comparison spread only',
     assert.match(html, /Against the spread: 1-0-0/);
     assert.doesNotMatch(html, /favorable|original|hypothetical/i);
     const index = publish.renderSeasonIndex(2026, [issue]);
-    assert.match(index, /<th>Against the spread<\/th>/);
+    assert.match(index, /<table class="season-table"><thead><tr>/);
+    assert.match(index, /<th>Against<br>the&nbsp;spread<\/th>/);
     assert.match(index, /Issue 1\)<\/a><\/td><td>1-0-0\?<\/td><td><\/td><td>1-0-0\?<\/td>/);
     assert.doesNotMatch(index, /favorable|original|hypothetical/i);
 });
@@ -432,7 +433,7 @@ test('refreshing archived results preserves canonical predictions and validates 
     assert.match(fs.readFileSync(archive, 'utf8'), /Final Score:<\/strong> A 100 - H 110/);
     assert.doesNotMatch(fs.readFileSync(archive, 'utf8'), /<p>Results:/);
     assert.match(fs.readFileSync(path.join(root, 'NBATMP.htm'), 'utf8'), /Against the spread:/);
-    assert.match(fs.readFileSync(path.join(root, 'archives', '2026', 'index.html'), 'utf8'), /Against the spread<\/th>/);
+    assert.match(fs.readFileSync(path.join(root, 'archives', '2026', 'index.html'), 'utf8'), /Against<br>the&nbsp;spread<\/th>/);
     assert.equal(daily.readState(root).issues[0].archived, true);
     fs.appendFileSync(archive, 'tampering');
     assert.throws(() => daily.refreshResults(root), /checksum mismatch/);
@@ -479,11 +480,20 @@ test('record summaries cite the original tables and distinguish pilot results', 
     assert.match(index, /not an independently verified NBA-only record/);
     const hero = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     assert.match(hero, /92\.31%/);
-    assert.ok(hero.includes('the historical season of 2015 the NBA Edge beat the spread even better than our 90% rate, going 92.31% in our selected picks'));
+    assert.match(hero, /class="hero-copy">Get the edge on today's NBA games/);
+    assert.match(hero, /<h2>92\.31%[\s\S]*?92\.31% in the 2015 season/);
     assert.match(hero, /href="about\.html"/);
     const about = fs.readFileSync(path.join(root, 'about.html'), 'utf8');
     assert.match(about, /Chris &ldquo;Green Bomber&rdquo; Campbell/);
     assert.match(about, /PanaGeoTech formula/);
+});
+
+test('homepage places the property sponsor before the legacy section without visible advertisement labels', () => {
+    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+    assert.ok(html.indexOf('class="sponsor sponsor-property"') < html.indexOf('id="approach"'));
+    assert.match(html, /<h2 id="approach-heading">The NBA Edge Legacy<\/h2>/);
+    assert.doesNotMatch(html, /<p class="sponsor-label">Advertisement<\/p>/);
+    assert.equal((html.match(/class="sponsor sponsor-property"/g) || []).length, 1);
 });
 
 test('public classic archives contain only safe links, local assets, and preserved scores', () => {
