@@ -724,7 +724,10 @@
             "total": 225.5,
             "source": "DraftKings"
           },
-          "final": null,
+          "final": {
+            "away": 98,
+            "home": 126
+          },
           "projection": {
             "away": 89,
             "home": 136
@@ -776,7 +779,10 @@
             "total": 229.5,
             "source": "DraftKings"
           },
-          "final": null,
+          "final": {
+            "away": 124,
+            "home": 114
+          },
           "projection": {
             "away": 115,
             "home": 93
@@ -828,7 +834,10 @@
             "total": 216.5,
             "source": "DraftKings"
           },
-          "final": null,
+          "final": {
+            "away": 102,
+            "home": 99
+          },
           "projection": {
             "away": 106,
             "home": 114
@@ -880,17 +889,500 @@
             "total": 225.5,
             "source": "DraftKings"
           },
-          "final": null,
+          "final": {
+            "away": 112,
+            "home": 124
+          },
           "projection": {
             "away": 107,
             "home": 120
           }
         }
       ],
-      "archived": false,
+      "archived": true,
       "template": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n    <meta charset=\"utf-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n    <title>The NBA Edge | {{DATE}} projections</title>\n    <link rel=\"stylesheet\" href=\"{{ROOT}}nba.css\">\n    <script src=\"{{ROOT}}nba-viewport.js\" data-date=\"{{DATE}}\" data-fallback=\"{{ROOT}}nba-unavailable.html\"></script>\n</head>\n<body>\n    <a class=\"skip-link\" href=\"#main\">Skip to content</a>\n    <header class=\"site-bar\">\n        <nav class=\"site-bar-inner\" aria-label=\"Main navigation\">\n            <a class=\"brand\" href=\"{{ROOT}}index.html\">THE NBA <span>EDGE</span><small>Powered by PanaGeoTech</small></a>\n            <div class=\"nav-links\"><a href=\"{{ROOT}}archives/index.html\">Archives</a><a href=\"{{ROOT}}about.html\">About</a><a class=\"nav-cta\" href=\"{{ROOT}}NBATMP.htm\">Today's projections</a></div>\n        </nav>\n    </header>\n    <main class=\"page\" id=\"main\">\n        <noscript><p class=\"game-card\">Please check the issue date below: automatic detection of an outdated issue requires JavaScript. <a href=\"{{ROOT}}archives/index.html\">Explore the archives</a>.</p></noscript>\n        <a href=\"{{ROOT}}NBATMP.htm\"><img class=\"issue-banner\" src=\"{{ROOT}}images/banner.jpg\" alt=\"Get the NBA Edge: current issue\"></a>\n        <header class=\"header\">\n            <p class=\"eyebrow\">{{ISSUE}}</p>\n            <h1>{{DATE}} Picks</h1>\n            <p class=\"intro\">Computer-generated NBA score projections from Greggy the Greek's PanaGeoTech formula.</p>\n            <p>Game dates are Eastern Time. Comparison spreads may differ from available betting lines. For entertainment and informational purposes only.</p>\n        </header>\n        <section class=\"game-list\" aria-label=\"NBA projections\">\n            <!-- GAME-CARDS -->\n        </section>\n        <!-- SPONSOR-DEFINITIONS-START -->\n        <template>\n                <!-- SPONSOR-START -->\n                <article class=\"sponsor sponsor-liberty\" aria-label=\"Liberty Mutual advertisement\">\n                    <div class=\"sponsor-row\"><img class=\"sponsor-logo liberty-logo\" src=\"https://blogger.googleusercontent.com/img/a/AVvXsEhJW-A8S78eGMtpVFkeRci_bw-7VWlCoeciRZcJUMWjB5DtjShq5VkTHQlfviT-NDUGojGsGqKbT8zLU4t3oS4JQoMVNmz-APnV0M1wqcPtuF2iaM8FstJqH6miChLR22EFbW1-SqAQ4n79OK1KSedBJ4Xi4AKF46QX8cfArNfGwKf5aMUxoKuOYG68SYc\" alt=\"Liberty Mutual\" loading=\"lazy\"><div><p class=\"sponsor-label\">Advertisement</p><h3>Save on insurance with Liberty Mutual</h3><p>Explore <a href=\"https://www.libertymutual.com/gregpanagiotatos-fl-445190?selectedOpt=auto_home\" target=\"_blank\" rel=\"noopener noreferrer\">customized coverage (opens in a new tab)</a> that fits your budget.</p><p>Call a licensed insurance agent at <strong>800-266-0644</strong> and mention client number <strong>445190</strong>.</p></div></div>\n                </article>\n                <!-- SPONSOR-END -->\n                <!-- SPONSOR-START -->\n                <article class=\"sponsor sponsor-property\" aria-label=\"PRO Properties Group advertisement\">\n                    <div class=\"sponsor-row\"><img class=\"sponsor-logo property-logo\" src=\"https://propropertylist.com/chw/images/PROProps.jpg\" alt=\"PRO Properties Group\" loading=\"lazy\"><div><p class=\"sponsor-label\">Advertisement</p><h3>Own the Property. <span>Not the Headaches.</span></h3><p>Property management done right, done simply. Leave the hassles to the pros at PRO Properties Group.</p><a class=\"sponsor-button\" href=\"https://propropertylist.com/chw/\" target=\"_blank\" rel=\"noopener noreferrer\">Get My Free Property Review &rarr; (opens in a new tab)</a></div></div>\n                </article>\n                <!-- SPONSOR-END -->\n                <!-- SPONSOR-START -->\n                <article class=\"sponsor sponsor-feesh\" aria-label=\"Greggy Feesh and the Phlops advertisement\">\n                    {{FEESH_AD_CONTENT}}\n                </article>\n                <!-- SPONSOR-END -->\n        </template>\n        <!-- SPONSOR-DEFINITIONS-END -->\n    </main>\n    <footer class=\"site-footer\"><div class=\"portal-container\"><strong>The NBA Edge</strong> &nbsp;|&nbsp; Powered by PanaGeoTech <span><a href=\"{{ROOT}}index.html\">Home</a> &middot; <a href=\"{{ROOT}}archives/index.html\">Archives</a> &middot; <a href=\"{{ROOT}}about.html\">About</a> &middot; <a href=\"{{ROOT}}disclaimer.html\">Disclaimer</a></span><p>For entertainment and informational purposes only.</p></div></footer>\n</body>\n</html>\n",
       "model_source": "configured",
-      "canonical_hash": "68c44219f0f2d6ac9dcafb581db96ea844359dd620bd3450ce4e289635410aa5"
+      "canonical_hash": "68c44219f0f2d6ac9dcafb581db96ea844359dd620bd3450ce4e289635410aa5",
+      "archive_hash": "bbe7e302a97cd9c2385a3ba6a1aa0134e860521f7d40e7025c07c9d29ad53928"
+    },
+    {
+      "season": 2026,
+      "number": 3,
+      "date": "2026-11-20",
+      "games": [
+        {
+          "id": "401909305",
+          "date": "2026-11-21T00:00Z",
+          "away": {
+            "id": "30",
+            "abbreviation": "CHA",
+            "name": "Charlotte Hornets",
+            "record": "4-10",
+            "stats": {
+              "gp": 4,
+              "wins": 1,
+              "losses": 3,
+              "pf_sum": 439,
+              "pa_sum": 444,
+              "game_ids": [
+                "401910005",
+                "401909987",
+                "401909979",
+                "401909953"
+              ]
+            }
+          },
+          "home": {
+            "id": "1",
+            "abbreviation": "ATL",
+            "name": "Atlanta Hawks",
+            "record": "9-6",
+            "stats": {
+              "gp": 4,
+              "wins": 2,
+              "losses": 2,
+              "pf_sum": 461,
+              "pa_sum": 467,
+              "game_ids": [
+                "401910014",
+                "401909992",
+                "401909299",
+                "401909952"
+              ]
+            }
+          },
+          "odds": {
+            "spread": -7.5,
+            "total": 218.5,
+            "source": "DraftKings"
+          },
+          "final": null,
+          "projection": {
+            "away": 104,
+            "home": 113
+          }
+        },
+        {
+          "id": "401909306",
+          "date": "2026-11-21T00:30Z",
+          "away": {
+            "id": "19",
+            "abbreviation": "ORL",
+            "name": "Orlando Magic",
+            "record": "6-8",
+            "stats": {
+              "gp": 4,
+              "wins": 3,
+              "losses": 1,
+              "pf_sum": 461,
+              "pa_sum": 433,
+              "game_ids": [
+                "401910010",
+                "401909994",
+                "401909297",
+                "401909973"
+              ]
+            }
+          },
+          "home": {
+            "id": "17",
+            "abbreviation": "BKN",
+            "name": "Brooklyn Nets",
+            "record": "3-11",
+            "stats": {
+              "gp": 4,
+              "wins": 1,
+              "losses": 3,
+              "pf_sum": 485,
+              "pa_sum": 512,
+              "game_ids": [
+                "401910011",
+                "401909997",
+                "401909983",
+                "401909972"
+              ]
+            }
+          },
+          "odds": {
+            "spread": 6.5,
+            "total": 224.5,
+            "source": "DraftKings"
+          },
+          "final": null,
+          "projection": {
+            "away": 125,
+            "home": 106
+          }
+        },
+        {
+          "id": "401909307",
+          "date": "2026-11-21T00:30Z",
+          "away": {
+            "id": "11",
+            "abbreviation": "IND",
+            "name": "Indiana Pacers",
+            "record": "5-10",
+            "stats": {
+              "gp": 4,
+              "wins": 2,
+              "losses": 2,
+              "pf_sum": 448,
+              "pa_sum": 455,
+              "game_ids": [
+                "401910008",
+                "401909985",
+                "401909296",
+                "401909966"
+              ]
+            }
+          },
+          "home": {
+            "id": "5",
+            "abbreviation": "CLE",
+            "name": "Cleveland Cavaliers",
+            "record": "8-8",
+            "stats": {
+              "gp": 4,
+              "wins": 2,
+              "losses": 2,
+              "pf_sum": 495,
+              "pa_sum": 489,
+              "game_ids": [
+                "401910007",
+                "401909995",
+                "401909981",
+                "401909298"
+              ]
+            }
+          },
+          "odds": {
+            "spread": -5.5,
+            "total": 233.5,
+            "source": "DraftKings"
+          },
+          "final": null,
+          "projection": {
+            "away": 117,
+            "home": 119
+          }
+        },
+        {
+          "id": "401909308",
+          "date": "2026-11-21T00:30Z",
+          "away": {
+            "id": "28",
+            "abbreviation": "TOR",
+            "name": "Toronto Raptors",
+            "record": "5-10",
+            "stats": {
+              "gp": 4,
+              "wins": 0,
+              "losses": 4,
+              "pf_sum": 421,
+              "pa_sum": 449,
+              "game_ids": [
+                "401910012",
+                "401910002",
+                "401909990",
+                "401909976"
+              ]
+            }
+          },
+          "home": {
+            "id": "8",
+            "abbreviation": "DET",
+            "name": "Detroit Pistons",
+            "record": "10-4",
+            "stats": {
+              "gp": 4,
+              "wins": 3,
+              "losses": 1,
+              "pf_sum": 488,
+              "pa_sum": 479,
+              "game_ids": [
+                "401910013",
+                "401910004",
+                "401909982",
+                "401909977"
+              ]
+            }
+          },
+          "odds": {
+            "spread": -6.5,
+            "total": 216.5,
+            "source": "DraftKings"
+          },
+          "final": null,
+          "projection": {
+            "away": 96,
+            "home": 121
+          }
+        },
+        {
+          "id": "401909309",
+          "date": "2026-11-21T01:00Z",
+          "away": {
+            "id": "27",
+            "abbreviation": "WSH",
+            "name": "Washington Wizards",
+            "record": "5-11",
+            "stats": {
+              "gp": 4,
+              "wins": 1,
+              "losses": 3,
+              "pf_sum": 482,
+              "pa_sum": 526,
+              "game_ids": [
+                "401910012",
+                "401909996",
+                "401909991",
+                "401909977"
+              ]
+            }
+          },
+          "home": {
+            "id": "4",
+            "abbreviation": "CHI",
+            "name": "Chicago Bulls",
+            "record": "4-10",
+            "stats": {
+              "gp": 4,
+              "wins": 3,
+              "losses": 1,
+              "pf_sum": 494,
+              "pa_sum": 456,
+              "game_ids": [
+                "401910011",
+                "401909995",
+                "401909984",
+                "401909299"
+              ]
+            }
+          },
+          "odds": {
+            "spread": -2.5,
+            "total": 237.5,
+            "source": "DraftKings"
+          },
+          "final": null,
+          "projection": {
+            "away": 108,
+            "home": 131
+          }
+        },
+        {
+          "id": "401909310",
+          "date": "2026-11-21T01:00Z",
+          "away": {
+            "id": "3",
+            "abbreviation": "NO",
+            "name": "New Orleans Pelicans",
+            "record": "5-11",
+            "stats": {
+              "gp": 4,
+              "wins": 1,
+              "losses": 3,
+              "pf_sum": 443,
+              "pa_sum": 474,
+              "game_ids": [
+                "401910013",
+                "401910000",
+                "401909980",
+                "401909300"
+              ]
+            }
+          },
+          "home": {
+            "id": "25",
+            "abbreviation": "OKC",
+            "name": "Oklahoma City Thunder",
+            "record": "9-6",
+            "stats": {
+              "gp": 4,
+              "wins": 1,
+              "losses": 3,
+              "pf_sum": 457,
+              "pa_sum": 451,
+              "game_ids": [
+                "401910014",
+                "401909993",
+                "401909304",
+                "401909975"
+              ]
+            }
+          },
+          "odds": {
+            "spread": -11.5,
+            "total": 228.5,
+            "source": "DraftKings"
+          },
+          "final": null,
+          "projection": {
+            "away": 103,
+            "home": 107
+          }
+        },
+        {
+          "id": "401909311",
+          "date": "2026-11-21T02:30Z",
+          "away": {
+            "id": "21",
+            "abbreviation": "PHX",
+            "name": "Phoenix Suns",
+            "record": "7-7",
+            "stats": {
+              "gp": 4,
+              "wins": 3,
+              "losses": 1,
+              "pf_sum": 469,
+              "pa_sum": 439,
+              "game_ids": [
+                "401910018",
+                "401910001",
+                "401909986",
+                "401909979"
+              ]
+            }
+          },
+          "home": {
+            "id": "26",
+            "abbreviation": "UTAH",
+            "name": "Utah Jazz",
+            "record": "3-13",
+            "stats": {
+              "gp": 4,
+              "wins": 2,
+              "losses": 2,
+              "pf_sum": 461,
+              "pa_sum": 439,
+              "game_ids": [
+                "401910017",
+                "401910006",
+                "401909988",
+                "401909301"
+              ]
+            }
+          },
+          "odds": {
+            "spread": 4.5,
+            "total": 225.5,
+            "source": "DraftKings"
+          },
+          "final": null,
+          "projection": {
+            "away": 117,
+            "home": 113
+          }
+        },
+        {
+          "id": "401909312",
+          "date": "2026-11-21T03:00Z",
+          "away": {
+            "id": "10",
+            "abbreviation": "HOU",
+            "name": "Houston Rockets",
+            "record": "12-4",
+            "stats": {
+              "gp": 4,
+              "wins": 3,
+              "losses": 1,
+              "pf_sum": 501,
+              "pa_sum": 469,
+              "game_ids": [
+                "401910008",
+                "401909998",
+                "401909991",
+                "401909301"
+              ]
+            }
+          },
+          "home": {
+            "id": "7",
+            "abbreviation": "DEN",
+            "name": "Denver Nuggets",
+            "record": "8-5",
+            "stats": {
+              "gp": 4,
+              "wins": 3,
+              "losses": 1,
+              "pf_sum": 449,
+              "pa_sum": 444,
+              "game_ids": [
+                "401910015",
+                "401910001",
+                "401909980",
+                "401909970"
+              ]
+            }
+          },
+          "odds": {
+            "spread": -1.5,
+            "total": 226.5,
+            "source": "DraftKings"
+          },
+          "final": null,
+          "projection": {
+            "away": 122,
+            "home": 118
+          }
+        },
+        {
+          "id": "401909313",
+          "date": "2026-11-21T03:00Z",
+          "away": {
+            "id": "23",
+            "abbreviation": "SAC",
+            "name": "Sacramento Kings",
+            "record": "1-13",
+            "stats": {
+              "gp": 4,
+              "wins": 0,
+              "losses": 4,
+              "pf_sum": 417,
+              "pa_sum": 480,
+              "game_ids": [
+                "401910018",
+                "401909993",
+                "401909303",
+                "401909964"
+              ]
+            }
+          },
+          "home": {
+            "id": "13",
+            "abbreviation": "LAL",
+            "name": "Los Angeles Lakers",
+            "record": "13-3",
+            "stats": {
+              "gp": 4,
+              "wins": 3,
+              "losses": 1,
+              "pf_sum": 469,
+              "pa_sum": 458,
+              "game_ids": [
+                "401910017",
+                "401910005",
+                "401909986",
+                "401909971"
+              ]
+            }
+          },
+          "odds": {
+            "spread": -14.5,
+            "total": 229.5,
+            "source": "DraftKings"
+          },
+          "final": null,
+          "projection": {
+            "away": 93,
+            "home": 122
+          }
+        }
+      ],
+      "archived": false,
+      "template": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n    <meta charset=\"utf-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n    <title>The NBA Edge | {{DATE}} projections</title>\n    <link rel=\"stylesheet\" href=\"{{ROOT}}nba.css\">\n    <script src=\"{{ROOT}}nba-viewport.js\" data-date=\"{{DATE}}\" data-fallback=\"{{ROOT}}nba-unavailable.html\"></script>\n</head>\n<body>\n    <a class=\"skip-link\" href=\"#main\">Skip to content</a>\n    <header class=\"site-bar\">\n        <nav class=\"site-bar-inner\" aria-label=\"Main navigation\">\n            <a class=\"brand\" href=\"{{ROOT}}index.html\">THE NBA <span>EDGE</span><small>Powered by PanaGeoTech</small></a>\n            <div class=\"nav-links\"><a href=\"{{ROOT}}archives/index.html\">Archives</a><a href=\"{{ROOT}}about.html\">About</a><a class=\"nav-cta\" href=\"{{ROOT}}NBATMP.htm\">Today's projections</a></div>\n        </nav>\n    </header>\n    <main class=\"page\" id=\"main\">\n        <noscript><p class=\"game-card\">Please check the issue date below: automatic detection of an outdated issue requires JavaScript. <a href=\"{{ROOT}}archives/index.html\">Explore the archives</a>.</p></noscript>\n        <a href=\"{{ROOT}}NBATMP.htm\"><img class=\"issue-banner\" src=\"{{ROOT}}images/banner.jpg\" alt=\"Get the NBA Edge: current issue\"></a>\n        <header class=\"header\">\n            <p class=\"eyebrow\">{{ISSUE}}</p>\n            <h1>{{DATE}} Picks</h1>\n            <p class=\"intro\">Computer-generated NBA score projections from Greggy the Greek's PanaGeoTech formula.</p>\n            <p>Game dates are Eastern Time. Comparison spreads may differ from available betting lines. For entertainment and informational purposes only.</p>\n        </header>\n        <section class=\"game-list\" aria-label=\"NBA projections\">\n            <!-- GAME-CARDS -->\n        </section>\n        <!-- SPONSOR-DEFINITIONS-START -->\n        <template>\n                <!-- SPONSOR-START -->\n                <article class=\"sponsor sponsor-liberty\" aria-label=\"Liberty Mutual advertisement\">\n                    <div class=\"sponsor-row\"><img class=\"sponsor-logo liberty-logo\" src=\"https://blogger.googleusercontent.com/img/a/AVvXsEhJW-A8S78eGMtpVFkeRci_bw-7VWlCoeciRZcJUMWjB5DtjShq5VkTHQlfviT-NDUGojGsGqKbT8zLU4t3oS4JQoMVNmz-APnV0M1wqcPtuF2iaM8FstJqH6miChLR22EFbW1-SqAQ4n79OK1KSedBJ4Xi4AKF46QX8cfArNfGwKf5aMUxoKuOYG68SYc\" alt=\"Liberty Mutual\" loading=\"lazy\"><div><p class=\"sponsor-label\">Advertisement</p><h3>Save on insurance with Liberty Mutual</h3><p>Explore <a href=\"https://www.libertymutual.com/gregpanagiotatos-fl-445190?selectedOpt=auto_home\" target=\"_blank\" rel=\"noopener noreferrer\">customized coverage (opens in a new tab)</a> that fits your budget.</p><p>Call a licensed insurance agent at <strong>800-266-0644</strong> and mention client number <strong>445190</strong>.</p></div></div>\n                </article>\n                <!-- SPONSOR-END -->\n                <!-- SPONSOR-START -->\n                <article class=\"sponsor sponsor-property\" aria-label=\"PRO Properties Group advertisement\">\n                    <div class=\"sponsor-row\"><img class=\"sponsor-logo property-logo\" src=\"https://propropertylist.com/chw/images/PROProps.jpg\" alt=\"PRO Properties Group\" loading=\"lazy\"><div><p class=\"sponsor-label\">Advertisement</p><h3>Own the Property. <span>Not the Headaches.</span></h3><p>Property management done right, done simply. Leave the hassles to the pros at PRO Properties Group.</p><a class=\"sponsor-button\" href=\"https://propropertylist.com/chw/\" target=\"_blank\" rel=\"noopener noreferrer\">Get My Free Property Review &rarr; (opens in a new tab)</a></div></div>\n                </article>\n                <!-- SPONSOR-END -->\n                <!-- SPONSOR-START -->\n                <article class=\"sponsor sponsor-feesh\" aria-label=\"Greggy Feesh and the Phlops advertisement\" {{FEESH_AD_ARTICLE_STYLE}}>\n                    {{FEESH_AD_CONTENT}}\n                </article>\n                <!-- SPONSOR-END -->\n        </template>\n        <!-- SPONSOR-DEFINITIONS-END -->\n    </main>\n    <footer class=\"site-footer\"><div class=\"portal-container\"><strong>The NBA Edge</strong> &nbsp;|&nbsp; Powered by PanaGeoTech <span><a href=\"{{ROOT}}index.html\">Home</a> &middot; <a href=\"{{ROOT}}archives/index.html\">Archives</a> &middot; <a href=\"{{ROOT}}about.html\">About</a> &middot; <a href=\"{{ROOT}}disclaimer.html\">Disclaimer</a></span><p>For entertainment and informational purposes only.</p></div></footer>\n</body>\n</html>\n",
+      "model_source": "configured",
+      "canonical_hash": "1e08545fbcb1c543752222fff1e7e5f6755b75998cd4c43ac767cb762d2a57e1"
     }
   ]
 }
