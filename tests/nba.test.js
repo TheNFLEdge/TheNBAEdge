@@ -259,6 +259,31 @@ test('final score indicators distinguish winners, covers and correct totals', ()
     assert.doesNotMatch(html, /aria-label="Winner|aria-label="Over|aria-label="Under/);
 });
 
+test('season tables and archived issues explain the score indicators', () => {
+    const game = {
+        id: '1', away: { name: 'Away', abbreviation: 'A' }, home: { name: 'Home', abbreviation: 'H' },
+        projection: { away: 100, home: 110 }, final: { away: 100, home: 110 }, odds: { spread: -3.5, total: 210.5 }
+    };
+    const issue = { games: [game], date: '2026-11-18', number: 1, season: 2026 };
+    const archive = publish.renderIssue('<!-- GAME-CARDS -->', issue, '../../');
+    const index = publish.renderSeasonIndex(2026, []);
+    const legend = archive.match(/<p class="result-legend">[\s\S]*?<\/p>/)?.[0];
+    assert.ok(legend);
+    assert.ok(index.includes(`</table>${legend}`));
+    assert.match(legend, /W = correct winner; L = incorrect winner/);
+    assert.match(legend, /green <strong class="result-win">W<\/strong> = correct winner and spread/);
+    assert.match(legend, /green <strong class="result-win">COVER<\/strong> = correct spread but incorrect winner/);
+    assert.match(legend, /\(O\)[\s\S]*\(U\)[\s\S]*correct over or under prediction/);
+    assert.ok(archive.indexOf(legend) > archive.indexOf('data-game-id="1"'));
+    const legacy = publish.renderIssue('<!-- GAME-CARDS --><section class="issue-sponsors">Sponsors</section>', issue, '../../');
+    assert.ok(legacy.indexOf(legend) < legacy.indexOf('<section class="issue-sponsors">'));
+    const template = fs.readFileSync(path.join(__dirname, '..', 'nba-template.htm'), 'utf8');
+    const modern = publish.renderIssue(template, issue, '../../');
+    assert.ok(modern.indexOf(legend) > modern.lastIndexOf('data-game-id="1"'));
+    assert.ok(modern.indexOf(legend) < modern.indexOf('class="sponsor sponsor-nfl"'));
+    assert.doesNotMatch(publish.renderIssue('<!-- GAME-CARDS -->', issue), /result-legend/);
+});
+
 test('public issue and season records use the displayed comparison spread only', () => {
     const game = {
         id: '1', away: { name: 'Away', abbreviation: 'A' }, home: { name: 'Home', abbreviation: 'H' },
@@ -340,11 +365,15 @@ test('outdated viewport stays accessible with a date warning, including DST', ()
 
 test('daily workflow schedules four publication attempts three hours apart', () => {
     const workflow = fs.readFileSync(path.join(__dirname, '..', '.github', 'workflows', 'nba-daily.yml'), 'utf8');
-    assert.match(workflow, /cron: '41 9-18\/3 \* \* \*'/);
+    assert.match(workflow, /cron: '34 2-11\/3 \* \* \*'\s+timezone: 'America\/New_York'/);
     assert.match(workflow, /workflow_dispatch:/);
     assert.match(workflow, /rebuild_today:/);
     assert.match(workflow, /refresh_today_presentation:/);
     assert.match(workflow, /group: nba-daily-publication/);
+    assert.match(workflow, /actions: write/);
+    assert.match(workflow, /id: scores[\s\S]*?if: steps\.scores\.outputs\.changes_detected == 'true'[\s\S]*?gh workflow run deploy-pages\.yml/);
+    assert.ok(workflow.indexOf('node nba-daily.js --scores-only') < workflow.indexOf('Commit and push final scores'));
+    assert.ok(workflow.indexOf('Commit and push final scores') < workflow.indexOf('Update NBA projections and archives'));
 });
 
 test('Greggy Feesh Thanksgiving sponsor matches the NFL seasonal banner', () => {
@@ -420,6 +449,43 @@ test('overnight score passes update the current viewport without altering predic
     assert.equal(daily.readState(root).issues.length, 2);
 });
 
+test('score updates survive a failed rotation and preserve same-day results on repeat publication', async t => {
+    const root = temporaryRoot(t);
+    const stats = { gp: 4, wins: 3, losses: 1, pf_sum: 440, pa_sum: 420 };
+    let failScoreboard = false;
+    let scoreLookups = 0;
+    const provider = {
+        scoreboard: async date => {
+            if (failScoreboard) throw new data.ProviderUnavailableError('scoreboard unavailable');
+            return [event(date, `${date}T23:00:00Z`, false)];
+        },
+        teamStats: async () => ({ ...stats }),
+        mergeOdds: async () => {},
+        finalScore: async () => { scoreLookups++; return { away: 100, home: 110 }; }
+    };
+    await daily.run({ root, now: new Date('2026-11-18T07:34:00Z'), provider, env: {} });
+    const canonical = fs.readFileSync(path.join(root, 'nba26-001.html'), 'utf8');
+    await daily.run({ root, now: new Date('2026-11-18T10:34:00Z'), provider, env: {}, scoresOnly: true });
+    assert.equal(scoreLookups, 0);
+    await daily.run({ root, now: new Date('2026-11-19T04:30:00Z'), provider, env: {}, scoresOnly: true });
+    const updated = fs.readFileSync(path.join(root, 'NBATMP.htm'), 'utf8');
+    assert.match(updated, /Final Score:<\/strong> A 100 - H 110/);
+    assert.match(updated, /Final games: 1 of 1/);
+    assert.equal(daily.readState(root).issues[0].archived, false);
+    await daily.run({ root, now: new Date('2026-11-19T04:45:00Z'), provider, env: {} });
+    assert.equal(fs.readFileSync(path.join(root, 'NBATMP.htm'), 'utf8'), updated);
+    assert.equal(fs.readFileSync(path.join(root, 'nba26-001.html'), 'utf8'), canonical);
+
+    await daily.run({ root, now: new Date('2026-11-19T07:34:00Z'), provider, env: {}, scoresOnly: true });
+    const archivedViewport = fs.readFileSync(path.join(root, 'NBATMP.htm'), 'utf8');
+    assert.equal(daily.readState(root).issues[0].archived, true);
+    failScoreboard = true;
+    await assert.rejects(daily.run({ root, now: new Date('2026-11-19T07:34:00Z'), provider, env: {} }), /scoreboard unavailable/);
+    assert.equal(fs.readFileSync(path.join(root, 'NBATMP.htm'), 'utf8'), archivedViewport);
+    assert.match(archivedViewport, /Final Score:<\/strong> A 100 - H 110/);
+    assert.equal(fs.readFileSync(path.join(root, 'nba26-001.html'), 'utf8'), canonical);
+});
+
 test('refreshing archived results preserves canonical predictions and validates checksums', async t => {
     const root = temporaryRoot(t);
     const stats = { gp: 4, wins: 3, losses: 1, pf_sum: 440, pa_sum: 420 };
@@ -436,6 +502,7 @@ test('refreshing archived results preserves canonical predictions and validates 
     daily.refreshResults(root);
     assert.equal(fs.readFileSync(path.join(root, 'nba26-001.html'), 'utf8'), canonical);
     assert.match(fs.readFileSync(archive, 'utf8'), /Final Score:<\/strong> A 100 - H 110/);
+    assert.match(fs.readFileSync(archive, 'utf8'), /class="result-legend"/);
     assert.doesNotMatch(fs.readFileSync(archive, 'utf8'), /<p>Results:/);
     assert.match(fs.readFileSync(path.join(root, 'NBATMP.htm'), 'utf8'), /Against the spread:/);
     assert.match(fs.readFileSync(path.join(root, 'archives', '2026', 'index.html'), 'utf8'), /Against<br>the&nbsp;spread<\/th>/);
@@ -621,6 +688,7 @@ test('season percentages count wins and losses but exclude pushes and missing re
     ];
     const issue = { season: 2026, number: 1, date: '2026-11-18', archived: true, model_source: 'configured', games };
     const html = publish.renderSeasonIndex(2026, [issue]);
+    assert.match(html, /Point spreads and totals used are automatically calculated at publication time, which may differ from available betting lines\./);
     assert.match(html, /Season total<\/th><th>10-6-1<\/th><td>62\.50%<\/td><th>10-6-0<\/th><td>62\.50%<\/td>/);
     assert.match(publish.renderSeasonIndex(2026, []), /Season total<\/th><th>0-0-0<\/th><td>N\/A<\/td><th>0-0-0<\/th><td>N\/A<\/td>/);
     assert.match(html, /href="\.\.\/\.\.\/disclaimer\.html"/);

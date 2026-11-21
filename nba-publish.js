@@ -16,6 +16,10 @@ function renderNflPromo(prefix = '') {
     return `<article class="sponsor sponsor-nfl" aria-label="The NFL Edge promotion"><div class="sponsor-row"><a href="https://thenfledge.com/"><img class="nfl-logo" src="${prefix}images/nfl-edge-banner.gif" alt="The NFL Edge" loading="lazy"></a><div><h3>Get the Winners. Get the Edge.</h3><p>Free, no-nonsense NFL picks and computer-generated score projections from Greggy the Greek's PanaGeoTech formula throughout the football season.</p><p><a href="https://thenfledge.com/">Get the NFL Edge &rarr;</a></p></div></div></article>`;
 }
 
+function resultLegend() {
+    return '<p class="result-legend"><strong>Legend:</strong> W = correct winner; L = incorrect winner; green <strong class="result-win">W</strong> = correct winner and spread; green <strong class="result-win">COVER</strong> = correct spread but incorrect winner; green <strong class="result-win">(O)</strong> or <strong class="result-win">(U)</strong> = correct over or under prediction.</p>';
+}
+
 function adjustedSpread(game) {
     const spread = game.odds.spread;
     if (spread === null || !game.projection) return null;
@@ -148,7 +152,8 @@ function renderIssue(template, issue, prefix = '') {
     const feeshAdArticleStyle = isThanksgivingWindow
         ? ''
         : 'style="padding:0;background:#fff;border-color:#fff"';
-    let cards = issue.games.map(game => card(game, modern));
+    const gameCards = issue.games.map(game => card(game, modern));
+    let cards = gameCards;
     const definitions = /<!-- SPONSOR-DEFINITIONS-START -->([\s\S]*?)<!-- SPONSOR-DEFINITIONS-END -->/;
     const match = template.match(definitions);
     if (match) {
@@ -178,6 +183,7 @@ function renderIssue(template, issue, prefix = '') {
     const finished = issue.games.filter(game => game.final).length;
     if (finished) {
         const totals = summarize(issue);
+        if (prefix === '../../') cards.splice(cards.lastIndexOf(gameCards[gameCards.length - 1]) + 1, 0, resultLegend());
         cards.unshift(`<section class="game-card" aria-label="Projection results"><h2>Projection results</h2><p>Final games: ${finished} of ${issue.games.length}. Records are wins-losses-pushes; games without a projection or line are excluded.</p><p>Winners: ${recordString(totals.winner)} &nbsp; | &nbsp; Against the spread: ${recordString(totals.adjustedAts)} &nbsp; | &nbsp; Over/under: ${recordString(totals.total)}</p></section>`);
     }
     return template.replace('Lines are snapshots and may change.', 'Comparison spreads may differ from available betting lines.')
@@ -203,7 +209,10 @@ function renderSeasonIndex(season, issues) {
     const percentage = record => record.win + record.loss ? `${(100 * record.win / (record.win + record.loss)).toFixed(2)}%` : 'N/A';
     rows.push(`<tr><th>Season total</th><th>${recordString(totals.winner)}${totalMark}</th><td>${percentage(totals.winner)}</td><th>${recordString(totals.adjustedAts)}${totalMark}</th><td>${percentage(totals.adjustedAts)}</td><th>${recordString(totals.total)}${totalMark}</th></tr>`);
     const artwork = season === 2026 ? '<img class="header-scoreboard" src="../../images/archive-scoreboard.svg" alt="">' : '';
-    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${season} NBA archives</title><link rel="stylesheet" href="../../nba.css"></head><body><main class="page"><header class="header"><p><a href="../../index.html">Home</a> &middot; <a href="../index.html">All archives</a> &middot; <a href="../../disclaimer.html">Disclaimer</a></p><div class="header-art-layout"><div><h1>${season}&ndash;${String(season + 1).slice(-2)} archives</h1><p>Records are wins-losses-pushes. Games without a projection or line are excluded from the relevant record. Season percentages exclude pushes. Comparison spreads may differ from available betting lines.</p></div>${artwork}</div></header><div class="game-card table-wrap"><table class="season-table"><thead><tr><th>Issue</th><th>Winner</th><th aria-label="Winner percentage"></th><th>Against<br>the&nbsp;spread</th><th aria-label="Against the spread percentage"></th><th>Over/under</th></tr></thead><tbody>${rows.join('\n')}</tbody></table></div><div class="sponsor-stack">${renderNflPromo('../../')}</div></main></body></html>\n`;
+    const lineNotice = season === 2026
+        ? 'Point spreads and totals used are automatically calculated at publication time, which may differ from available betting lines.'
+        : 'Season percentages exclude pushes. Comparison spreads may differ from available betting lines.';
+    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${season} NBA archives</title><link rel="stylesheet" href="../../nba.css"></head><body><main class="page"><header class="header"><p><a href="../../index.html">Home</a> &middot; <a href="../index.html">All archives</a> &middot; <a href="../../disclaimer.html">Disclaimer</a></p><div class="header-art-layout"><div><h1>${season}&ndash;${String(season + 1).slice(-2)} archives</h1><p>Records are wins-losses-pushes. Games without a projection or line are excluded from the relevant record. ${lineNotice}</p></div>${artwork}</div></header><div class="game-card table-wrap"><table class="season-table"><thead><tr><th>Issue</th><th>Winner</th><th aria-label="Winner percentage"></th><th>Against<br>the&nbsp;spread</th><th aria-label="Against the spread percentage"></th><th>Over/under</th></tr></thead><tbody>${rows.join('\n')}</tbody></table>${resultLegend()}</div><div class="sponsor-stack">${renderNflPromo('../../')}</div></main></body></html>\n`;
 }
 
 function renderArchivesIndex(issues) {

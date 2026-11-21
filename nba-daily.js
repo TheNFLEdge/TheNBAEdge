@@ -133,8 +133,9 @@ async function run({ root = ROOT, now = new Date(), provider = data, env = proce
     let changed = false;
     const archiveSeasons = new Set();
 
-    for (const issue of state.issues.filter(item => !item.archived && item.date < today)) {
-        for (const game of issue.games.filter(item => !item.final)) {
+    for (const issue of state.issues.filter(item => !item.archived && (item.date < today || (scoresOnly && item.date === today)))) {
+        for (const game of issue.games.filter(item => !item.final &&
+            (issue.date < today || !Number.isFinite(Date.parse(item.date)) || Date.parse(item.date) <= now.getTime()))) {
             let result;
             try {
                 result = await provider.finalScore(game);
@@ -148,7 +149,7 @@ async function run({ root = ROOT, now = new Date(), provider = data, env = proce
                 changed = true;
             }
         }
-        if (issue.games.every(game => game.final)) {
+        if (issue.date < today && issue.games.every(game => game.final)) {
             const html = publish.renderIssue(issue.template, issue, '../../');
             issue.archive_hash = publish.hash(html);
             issue.archived = true;
@@ -160,7 +161,7 @@ async function run({ root = ROOT, now = new Date(), provider = data, env = proce
             archiveSeasons.add(issue.season);
             changed = true;
             console.log(`Archived ${publish.issueName(issue)}`);
-        } else {
+        } else if (issue.date < today) {
             console.log(`Issue ${issue.number} (${issue.date}) remains pending; not all games are final.`);
         }
     }
@@ -259,7 +260,9 @@ async function run({ root = ROOT, now = new Date(), provider = data, env = proce
         }
     } else {
         const issue = state.issues.find(item => item.date === today);
-        outputs.set(path.join(root, VIEWPORT), fs.readFileSync(path.join(root, publish.issueName(issue)), 'utf8'));
+        const html = issue.games.some(game => game.final) ? publish.renderIssue(issue.template, issue) :
+            fs.readFileSync(path.join(root, publish.issueName(issue)), 'utf8');
+        outputs.set(path.join(root, VIEWPORT), html);
         console.log(`Issue for ${today} already exists; preserving the published projections and lines.`);
     }
 
