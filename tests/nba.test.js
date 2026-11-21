@@ -124,7 +124,7 @@ test('partial slates skip the odds lookup; an entirely missing slate uses a nonb
     await assert.rejects(data.mergeOdds(missing, 'key'), /not an array/);
 });
 
-test('issue template intersperses all three ads and resolves artwork for current and archived issues', () => {
+test('issue template intersperses all five ads and resolves artwork for current and archived issues', () => {
     const root = path.join(__dirname, '..');
     const template = fs.readFileSync(path.join(root, 'nba-template.htm'), 'utf8');
     const game = {
@@ -137,10 +137,15 @@ test('issue template intersperses all three ads and resolves artwork for current
         assert.match(html, /Liberty Mutual advertisement/);
         assert.match(html, /PRO Properties Group advertisement/);
         assert.match(html, /Greggy Feesh and the Phlops advertisement/);
+        assert.match(html, /PanaGeoTech promotion/);
+        assert.match(html, /The NFL Edge promotion/);
         assert.ok(html.includes(`src="${prefix}images/banner.jpg"`));
         assert.ok(html.includes(`src="${prefix}images/gfish-promo-ad.jpg"`));
+        assert.ok(html.includes(`src="${prefix}images/nfl-edge-banner.gif"`));
+        assert.ok(html.includes(`src="${prefix}images/panageotech-logo.jpg"`));
         assert.ok(html.includes(`href="${prefix}NBATMP.htm"`));
         assert.ok(html.includes(`href="${prefix}disclaimer.html"`));
+        assert.ok(html.match(/<div class="nav-links">.*?<\/div>/)[0].includes(`href="${prefix}disclaimer.html"`));
         assert.ok(html.includes(`src="${prefix}nba-viewport.js" data-date="2026-11-15" data-fallback="${prefix}nba-unavailable.html"`));
         assert.ok(!html.includes('{{ROOT}}'));
     }
@@ -152,18 +157,18 @@ test('ads are distributed between game cards for varying slate sizes', () => {
         away: { name: 'Away', abbreviation: 'A' }, home: { name: 'Home', abbreviation: 'H' },
         odds: { spread: null, total: null }, projection: null, final: null
     };
-    for (const count of [1, 2, 3, 5, 11, 12, 13, 15]) {
+    for (const count of [1, 2, 3, 5, 10, 11, 12, 13, 15]) {
         const games = Array.from({ length: count }, (_, index) => ({ ...game, id: String(index + 1) }));
         const html = publish.renderIssue(template, { date: '2026-11-15', number: 1, season: 2026, games });
-        const items = [...html.matchAll(/class="game-card" data-game-id="(\d+)"|class="sponsor sponsor-(liberty|property|feesh)"/g)]
+        const items = [...html.matchAll(/class="game-card" data-game-id="(\d+)"|class="sponsor sponsor-(liberty|property|feesh|panageotech|nfl)"/g)]
             .map(match => match[1] ? `game-${match[1]}` : match[2]);
         assert.deepEqual(items.filter(item => item.startsWith('game-')), games.map(item => `game-${item.id}`));
-        assert.deepEqual(items.filter(item => !item.startsWith('game-')), ['liberty', 'property', 'feesh']);
+        assert.deepEqual(items.filter(item => !item.startsWith('game-')), ['liberty', 'property', 'feesh', 'panageotech', 'nfl']);
         assert.equal(items[0], 'game-1');
-        if (count > 1) assert.equal(items.at(-1), `game-${count}`);
+        assert.equal(items.at(-1), 'nfl');
         if (count === 2) assert.equal(items[1], 'liberty');
-        if (count === 12) {
-            assert.deepEqual(items.map((item, index) => !item.startsWith('game-') ? index : -1).filter(index => index >= 0), [3, 7, 11]);
+        if (count === 10) {
+            assert.deepEqual(items.map((item, index) => !item.startsWith('game-') ? index : -1).filter(index => index >= 0), [2, 5, 8, 11, 14]);
         }
         assert.doesNotMatch(html, /SPONSOR-(DEFINITIONS|START|END)/);
     }
@@ -448,6 +453,9 @@ test('disclaimer is linked from the portal, about page, and current viewport', (
     for (const name of ['index.html', 'about.html', 'NBATMP.htm', 'nba-unavailable.html']) {
         assert.match(fs.readFileSync(path.join(root, name), 'utf8'), /href="disclaimer\.html"/, name);
     }
+    for (const name of ['index.html', 'about.html', 'disclaimer.html', 'nba-unavailable.html']) {
+        assert.match(fs.readFileSync(path.join(root, name), 'utf8'), /<div class="nav-links">[^<]*(?:<a[^>]*>[^<]*<\/a>)*<a href="disclaimer\.html"/, name);
+    }
     assert.match(fs.readFileSync(path.join(root, 'nba-template.htm'), 'utf8'), /href="\{\{ROOT\}\}disclaimer\.html"/);
 });
 
@@ -455,16 +463,32 @@ test('generated archive index preserves local classic season links', () => {
     const root = path.join(__dirname, '..');
     const html = publish.renderArchivesIndex([{ season: 2026, archived: true }]);
     assert.match(html, /2026\/index\.html/);
+    assert.match(html, /src="\.\.\/images\/legacy-basketball\.svg" alt=""/);
+    assert.match(html, /src="\.\.\/images\/nfl-edge-banner\.gif"/);
     for (const href of ['2011/index.html', '2012/index.html', '2013/index.html', '2014/index.html',
         '2015/index.html', '2016/index.html', '2017/index.html']) {
         assert.ok(html.includes(`href="${href}"`), href);
         assert.ok(fs.existsSync(path.join(root, 'archives', ...href.split('/'))), href);
         assert.match(fs.readFileSync(path.join(root, 'archives', ...href.split('/')), 'utf8'), /href="\.\.\/\.\.\/disclaimer\.html"/);
+        assert.match(fs.readFileSync(path.join(root, 'archives', ...href.split('/')), 'utf8'), /src="\.\.\/\.\.\/images\/nfl-edge-banner\.gif"/);
     }
     assert.match(html, /href="\.\.\/disclaimer\.html"/);
     assert.match(require('../tools/build-classic-archives').seasonIndex('2013', []), /href="\.\.\/\.\.\/disclaimer\.html"/);
     assert.equal(fs.readFileSync(path.join(root, 'archives', 'index.html'), 'utf8'),
         publish.renderArchivesIndex(daily.readState(root).issues));
+});
+
+test('season archive and disclaimer display their decorative artwork', () => {
+    const root = path.join(__dirname, '..');
+    const index = publish.renderSeasonIndex(2026, []);
+    assert.match(index, /src="\.\.\/\.\.\/images\/archive-scoreboard\.svg" alt=""/);
+    assert.doesNotMatch(publish.renderSeasonIndex(2027, []), /archive-scoreboard\.svg/);
+    const scoreboard = fs.readFileSync(path.join(root, 'images', 'archive-scoreboard.svg'), 'utf8');
+    assert.match(scoreboard, />HOME<\/text>/);
+    assert.match(scoreboard, />VISITOR<\/text>/);
+    assert.match(scoreboard, />109<\/text>/);
+    assert.match(scoreboard, />98<\/text>/);
+    assert.match(fs.readFileSync(path.join(root, 'disclaimer.html'), 'utf8'), /src="images\/disclaimer-official\.png" alt=""/);
 });
 
 test('record summaries cite the original tables and distinguish pilot results', () => {
@@ -496,6 +520,16 @@ test('homepage places the property sponsor before the legacy section without vis
     assert.equal((html.match(/class="sponsor sponsor-property"/g) || []).length, 1);
 });
 
+test('NFL promotion is consistent across static pages and generated indexes', () => {
+    const root = path.join(__dirname, '..');
+    for (const name of ['index.html', 'about.html', 'disclaimer.html', 'nba-unavailable.html']) {
+        const html = fs.readFileSync(path.join(root, name), 'utf8');
+        assert.ok(html.includes(publish.renderNflPromo()), name);
+        assert.match(html, /class="footer-logo" src="images\/panageotech-logo\.jpg"/, name);
+    }
+    assert.ok(publish.renderSeasonIndex(2026, []).includes(publish.renderNflPromo('../../')));
+});
+
 test('public classic archives contain only safe links, local assets, and preserved scores', () => {
     const root = path.join(__dirname, '..');
     let count = 0;
@@ -508,7 +542,7 @@ test('public classic archives contain only safe links, local assets, and preserv
             assert.doesNotMatch(html, /(?:befree|jdoqocy|awltovhc|lduhtrp|bettingpartners|partners\.betus|marketing\.888)/i, name);
             for (const match of html.matchAll(/(?:href|src)="([^"]+)"/g)) {
                 const url = match[1];
-                if (/^https?:/i.test(url)) assert.equal(url, 'https://www.888poker.com/', name);
+                if (/^https?:/i.test(url)) assert.ok(url === 'https://www.888poker.com/' || (name === 'index.html' && url === 'https://thenfledge.com/'), name);
                 else if (!url.startsWith('#')) {
                     const target = path.resolve(directory, decodeURI(url.split('#')[0]));
                     assert.ok(fs.existsSync(target), `${name}: missing ${url}`);
@@ -698,7 +732,8 @@ test('no-game days update the viewport without allocating an issue', async t => 
     assert.match(html, /Picks unavailable/);
     assert.match(html, /There are no NBA games scheduled for today/);
     assert.match(html, /src="nba-viewport\.js" data-date="2026-07-01" data-fallback="nba-unavailable\.html"/);
-    assert.doesNotMatch(html, /technical difficulties|sponsor sponsor-/);
+    assert.doesNotMatch(html, /technical difficulties/);
+    assert.match(html, /The NFL Edge promotion/);
     assert.ok(!fs.existsSync(path.join(root, 'nba_rotation_state.json')));
 });
 

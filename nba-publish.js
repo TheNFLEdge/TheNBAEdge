@@ -12,6 +12,10 @@ const issueName = issue => `nba${String(issue.season).slice(-2)}-${String(issue.
 const outcome = value => value > 0 ? 1 : value < 0 ? -1 : 0;
 const grade = (predicted, actual) => !predicted || !actual ? 'push' : predicted === actual ? 'win' : 'loss';
 
+function renderNflPromo(prefix = '') {
+    return `<article class="sponsor sponsor-nfl" aria-label="The NFL Edge promotion"><div class="sponsor-row"><a href="https://thenfledge.com/"><img class="nfl-logo" src="${prefix}images/nfl-edge-banner.gif" alt="The NFL Edge" loading="lazy"></a><div><h3>Get the Winners. Get the Edge.</h3><p>Free, no-nonsense NFL picks and computer-generated score projections from Greggy the Greek's PanaGeoTech formula throughout the football season.</p><p><a href="https://thenfledge.com/">Get the NFL Edge &rarr;</a></p></div></div></article>`;
+}
+
 function adjustedSpread(game) {
     const spread = game.odds.spread;
     if (spread === null || !game.projection) return null;
@@ -151,16 +155,18 @@ function renderIssue(template, issue, prefix = '') {
         const sponsors = [...match[1].matchAll(/<!-- SPONSOR-START -->\s*([\s\S]*?)\s*<!-- SPONSOR-END -->/g)]
             .map(item => item[1]
                 .replaceAll('{{FEESH_AD_ARTICLE_STYLE}}', feeshAdArticleStyle)
-                .replaceAll('{{FEESH_AD_CONTENT}}', feeshAdContent));
-        if (sponsors.length !== 3 || !template.includes('<!-- GAME-CARDS -->')) {
+                .replaceAll('{{FEESH_AD_CONTENT}}', feeshAdContent)
+                .replaceAll('{{NFL_AD_CONTENT}}', renderNflPromo('{{ROOT}}')));
+        if (![3, 5].includes(sponsors.length) || !template.includes('<!-- GAME-CARDS -->')) {
             throw new Error('Invalid NBA sponsor definitions or missing game cards marker');
         }
         template = template.replace(definitions, '');
         if (cards.length) {
             const insertions = new Map();
             sponsors.forEach((sponsor, index) => {
-                const position = cards.length === 1 ? 1 :
-                    Math.max(1, Math.min(cards.length - 1, Math.round((index + 1) * cards.length / 4)));
+                const position = sponsors.length === 5 && index === sponsors.length - 1 ? cards.length :
+                    cards.length === 1 ? 1 :
+                        Math.max(1, Math.min(cards.length - 1, Math.round((index + 1) * cards.length / (sponsors.length === 5 ? 5 : 4))));
                 if (!insertions.has(position)) insertions.set(position, []);
                 insertions.get(position).push(sponsor);
             });
@@ -196,14 +202,15 @@ function renderSeasonIndex(season, issues) {
     const totalMark = (complete.some(issue => marker(issue) === '*') ? '*' : '') + (complete.some(issue => marker(issue) === '?') ? '?' : '');
     const percentage = record => record.win + record.loss ? `${(100 * record.win / (record.win + record.loss)).toFixed(2)}%` : 'N/A';
     rows.push(`<tr><th>Season total</th><th>${recordString(totals.winner)}${totalMark}</th><td>${percentage(totals.winner)}</td><th>${recordString(totals.adjustedAts)}${totalMark}</th><td>${percentage(totals.adjustedAts)}</td><th>${recordString(totals.total)}${totalMark}</th></tr>`);
-    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${season} NBA archives</title><link rel="stylesheet" href="../../nba.css"></head><body><main class="page"><header class="header"><p><a href="../../index.html">Home</a> &middot; <a href="../index.html">All archives</a> &middot; <a href="../../disclaimer.html">Disclaimer</a></p><h1>${season}&ndash;${String(season + 1).slice(-2)} archives</h1><p>Records are wins-losses-pushes. Games without a projection or line are excluded from the relevant record. Season percentages exclude pushes. Comparison spreads may differ from available betting lines.</p></header><div class="game-card table-wrap"><table class="season-table"><thead><tr><th>Issue</th><th>Winner</th><th aria-label="Winner percentage"></th><th>Against<br>the&nbsp;spread</th><th aria-label="Against the spread percentage"></th><th>Over/under</th></tr></thead><tbody>${rows.join('\n')}</tbody></table></div></main></body></html>\n`;
+    const artwork = season === 2026 ? '<img class="header-scoreboard" src="../../images/archive-scoreboard.svg" alt="">' : '';
+    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${season} NBA archives</title><link rel="stylesheet" href="../../nba.css"></head><body><main class="page"><header class="header"><p><a href="../../index.html">Home</a> &middot; <a href="../index.html">All archives</a> &middot; <a href="../../disclaimer.html">Disclaimer</a></p><div class="header-art-layout"><div><h1>${season}&ndash;${String(season + 1).slice(-2)} archives</h1><p>Records are wins-losses-pushes. Games without a projection or line are excluded from the relevant record. Season percentages exclude pushes. Comparison spreads may differ from available betting lines.</p></div>${artwork}</div></header><div class="game-card table-wrap"><table class="season-table"><thead><tr><th>Issue</th><th>Winner</th><th aria-label="Winner percentage"></th><th>Against<br>the&nbsp;spread</th><th aria-label="Against the spread percentage"></th><th>Over/under</th></tr></thead><tbody>${rows.join('\n')}</tbody></table></div><div class="sponsor-stack">${renderNflPromo('../../')}</div></main></body></html>\n`;
 }
 
 function renderArchivesIndex(issues) {
     const seasons = [...new Set(issues.filter(issue => issue.archived).map(issue => issue.season))].sort((a, b) => b - a);
     const links = seasons.map(season => `<li><a href="${season}/index.html">${season}&ndash;${String(season + 1).slice(-2)} season</a></li>`).join('\n');
     const classic = [2017, 2016, 2015, 2014, 2013, 2012, 2011].map(year => `<li><a href="${year}/index.html">${year} classic issues</a></li>`).join('\n');
-    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>NBA archives</title><link rel="stylesheet" href="../nba.css"></head><body><main class="page"><header class="header"><p><a href="../index.html">Home</a> &middot; <a href="../NBATMP.htm">Today's projections</a> &middot; <a href="../disclaimer.html">Disclaimer</a></p><p class="eyebrow">The NBA Edge</p><h1>NBA archives</h1><p>Explore completed daily issues and a selection from the classic NBA Edge.</p></header><section class="game-card archive-list"><h2>Season archives</h2>${links ? `<ul>${links}</ul>` : '<p>No completed daily issues yet.</p>'}</section><section class="game-card archive-list"><h2>Classic NBA Edge</h2><p>Explore preserved historical issues and season records. Historical projections and results are presented as published and do not represent current performance.</p><ul>${classic}</ul></section></main></body></html>\n`;
+    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>NBA archives</title><link rel="stylesheet" href="../nba.css"></head><body><main class="page"><header class="header"><p><a href="../index.html">Home</a> &middot; <a href="../NBATMP.htm">Today's projections</a> &middot; <a href="../disclaimer.html">Disclaimer</a></p><div class="header-art-layout"><div><p class="eyebrow">The NBA Edge</p><h1>NBA archives</h1><p>Explore completed daily issues and a selection from the classic NBA Edge.</p></div><img class="legacy-basketball" src="../images/legacy-basketball.svg" alt=""></div></header><section class="game-card archive-list"><h2>Season archives</h2>${links ? `<ul>${links}</ul>` : '<p>No completed daily issues yet.</p>'}</section><section class="game-card archive-list"><h2>Classic NBA Edge</h2><p>Explore preserved historical issues and season records. Historical projections and results are presented as published and do not represent current performance.</p><ul>${classic}</ul></section><div class="sponsor-stack">${renderNflPromo('../')}</div></main></body></html>\n`;
 }
 
 function writeAtomic(file, content) {
@@ -217,4 +224,4 @@ function writeAtomic(file, content) {
     }
 }
 
-module.exports = { adjustedSpread, gameResults, hash, issueName, renderArchivesIndex, renderIssue, renderSeasonIndex, summarize, writeAtomic };
+module.exports = { adjustedSpread, gameResults, hash, issueName, renderArchivesIndex, renderIssue, renderNflPromo, renderSeasonIndex, summarize, writeAtomic };

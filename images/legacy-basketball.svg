@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+    <circle cx="50" cy="50" r="44" fill="#e98636" stroke="#572d1c" stroke-width="4"/>
+    <path d="M6 50h88M50 6v88M17 19c23 13 23 49 0 62M83 19c-23 13-23 49 0 62" fill="none" stroke="#572d1c" stroke-width="3"/>
+    <rect x="24" y="34" width="52" height="31" rx="4" fill="#0b1c2e"/>
+    <text x="50" y="46" fill="#fff" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" font-weight="700">THE NBA</text>
+    <text x="50" y="59" fill="#7bc8ff" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" font-weight="700">EDGE</text>
+</svg>
