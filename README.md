@@ -38,37 +38,13 @@ On each final-score line, W or L reflects the outright winner prediction. A bold
 
 ## Projection model
 
-For each team, the NFL formula divides its four-game points-for sum and the opponent's points-allowed sum by 16 quarters, adds the two figures, and multiplies by a confidence factor based on the team's four-game winning percentage. The default buckets and multipliers are:
-
-| Winning percentage | Bucket | Multiplier |
-| --- | --- | --- |
-| at least 80% | 1.0 | 2.4 |
-| at least 60% | 0.75 | 2.2 |
-| at least 40% | 0.5 | 2.0 |
-| at least 20% | 0.25 | 1.66 |
-| below 20% | 0.0 | 1.5 |
-
-As in `nfl-projection.py`, high buckets add 2 and round up; low buckets subtract 2 and round down; the middle bucket uses Python-style ties-to-even rounding. Negative scores are clamped to zero. If both rounded scores tie, the higher raw projection receives one point, with the home team winning an exact raw tie. The NFL-only impossible-football-score adjustment is not applied to basketball.
+The Projection model is based on the PanaGeoTech NFL Edge Score Projection model built and Copyrighted (c) PanaGeoTech Inc. 1998, 1999, 2000-2026 All rights reserved. 
 
 ## Configuration and deployment
 
 ESPN's public NBA endpoints require no key. The only optional betting-data integration is The Odds API's `basketball_nba` market, using the existing `ODDS_API_KEY` secret name. It is consulted only when ESPN provides no lines for the entire slate; network or HTTP failures are warned about and leave lines TBD, while malformed responses still fail the update. The NFL's API-Sports and Highlightly integrations are not configured here.
 
-Optional GitHub Actions secrets, with NFL-compatible names:
-
-| Secret | Default |
-| --- | --- |
-| `ODDS_API_KEY` | unset; ESPN lines only |
-| `PG_PI0` | 2.4 |
-| `PG_PI7` | 2.2 |
-| `PG_PPI5` | 2.0 |
-| `PG_PI2` | 1.66 |
-| `PG_PI_X` | 1.5 |
-| `PG_MD` | 2.0 |
-
-Secrets are repository-specific unless supplied by an organization. Configure them in this repository's GitHub settings if desired; do not commit keys. For local testing, `NBA_ESPN_BASE_URL` and `ODDS_BASE_URL` can override provider base URLs. The workflow does not set these overrides.
-
-Before deploying, review and commit these files, push them to `main`, enable GitHub Actions with workflow read/write permissions, and ensure any branch protection permits the workflow's push. For the website, configure GitHub Pages with **GitHub Actions** as its source. `.github/workflows/deploy-pages.yml` deploys the latest `main` after a push and after a successful daily or score workflow; this is necessary because a push made with `GITHUB_TOKEN` does not itself trigger another push workflow. A manual workflow dispatch is useful for the initial issue; if the run occurs after games start, only still-upcoming games are included. The score workflow can also be dispatched manually. The initial viewport is a placeholder until the first run. This repository does not automatically copy secrets or Pages settings from the NFL repository.
+Secrets are repository-specific unless supplied by an organization. `NBA_ESPN_BASE_URL` and `ODDS_BASE_URL` can override provider base URLs. The workflow does not set these overrides.
 
 ## Local commands
 
