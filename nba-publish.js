@@ -162,14 +162,17 @@ function renderIssue(template, issue, prefix = '') {
                 .replaceAll('{{FEESH_AD_ARTICLE_STYLE}}', feeshAdArticleStyle)
                 .replaceAll('{{FEESH_AD_CONTENT}}', feeshAdContent)
                 .replaceAll('{{NFL_AD_CONTENT}}', renderNflPromo('{{ROOT}}')));
-        if (![3, 5].includes(sponsors.length) || !template.includes('<!-- GAME-CARDS -->')) {
+        const starts = [...match[1].matchAll(/<!-- SPONSOR-START -->/g)].length;
+        const ends = [...match[1].matchAll(/<!-- SPONSOR-END -->/g)].length;
+        if (![3, 4, 5].includes(sponsors.length) || starts !== sponsors.length || ends !== sponsors.length ||
+            !template.includes('<!-- GAME-CARDS -->')) {
             throw new Error('Invalid NBA sponsor definitions or missing game cards marker');
         }
         template = template.replace(definitions, '');
         if (cards.length) {
             const insertions = new Map();
             sponsors.forEach((sponsor, index) => {
-                const position = sponsors.length === 5 && index === sponsors.length - 1 ? cards.length :
+                const position = [4, 5].includes(sponsors.length) && index === sponsors.length - 1 ? cards.length :
                     cards.length === 1 ? 1 :
                         Math.max(1, Math.min(cards.length - 1, Math.round((index + 1) * cards.length / (sponsors.length === 5 ? 5 : 4))));
                 if (!insertions.has(position)) insertions.set(position, []);
@@ -179,6 +182,12 @@ function renderIssue(template, issue, prefix = '') {
         }
     } else if (template.includes('<!-- SPONSOR-DEFINITIONS-START -->') || template.includes('<!-- SPONSOR-DEFINITIONS-END -->')) {
         throw new Error('Invalid NBA sponsor definitions');
+    }
+    const placeholder = /<!-- PGTX-PLACEHOLDER-START -->([\s\S]*?)<!-- PGTX-PLACEHOLDER-END -->/;
+    if (placeholder.test(template)) {
+        template = template.replace(placeholder, issue.games.length > 12 ? '$1' : '');
+    } else if (template.includes('<!-- PGTX-PLACEHOLDER-START -->') || template.includes('<!-- PGTX-PLACEHOLDER-END -->')) {
+        throw new Error('Invalid PanaGeoTech placeholder');
     }
     const finished = issue.games.filter(game => game.final).length;
     if (finished) {
@@ -198,16 +207,13 @@ function renderIssue(template, issue, prefix = '') {
 function renderSeasonIndex(season, issues) {
     const complete = issues.filter(issue => issue.season === season && issue.archived);
     const totals = { winner: { win: 0, loss: 0, push: 0 }, ats: { win: 0, loss: 0, push: 0 }, adjustedAts: { win: 0, loss: 0, push: 0 }, total: { win: 0, loss: 0, push: 0 } };
-    const marker = issue => issue.model_source === 'fallback' ? '*' : issue.model_source === 'configured' ? '' : '?';
     const rows = complete.sort((a, b) => a.number - b.number).map(issue => {
         const sum = summarize(issue);
         for (const name of Object.keys(totals)) for (const outcomeName of ['win', 'loss', 'push']) totals[name][outcomeName] += sum[name][outcomeName];
-        const mark = marker(issue);
-        return `<tr><td><a href="${issueName(issue)}">${escapeHtml(issue.date)} (Issue ${issue.number})</a></td><td>${recordString(sum.winner)}${mark}</td><td></td><td>${recordString(sum.adjustedAts)}${mark}</td><td></td><td>${recordString(sum.total)}${mark}</td></tr>`;
+        return `<tr><td><a href="${issueName(issue)}">${escapeHtml(issue.date)} (Issue ${issue.number})</a></td><td>${recordString(sum.winner)}</td><td></td><td>${recordString(sum.adjustedAts)}</td><td></td><td>${recordString(sum.total)}</td></tr>`;
     });
-    const totalMark = (complete.some(issue => marker(issue) === '*') ? '*' : '') + (complete.some(issue => marker(issue) === '?') ? '?' : '');
     const percentage = record => record.win + record.loss ? `${(100 * record.win / (record.win + record.loss)).toFixed(2)}%` : 'N/A';
-    rows.push(`<tr><th>Season total</th><th>${recordString(totals.winner)}${totalMark}</th><td>${percentage(totals.winner)}</td><th>${recordString(totals.adjustedAts)}${totalMark}</th><td>${percentage(totals.adjustedAts)}</td><th>${recordString(totals.total)}${totalMark}</th></tr>`);
+    rows.push(`<tr><th>Season total</th><th>${recordString(totals.winner)}</th><td>${percentage(totals.winner)}</td><th>${recordString(totals.adjustedAts)}</th><td>${percentage(totals.adjustedAts)}</td><th>${recordString(totals.total)}</th></tr>`);
     const artwork = season === 2026 ? '<img class="header-scoreboard" src="../../images/archive-scoreboard.svg" alt="">' : '';
     const lineNotice = season === 2026
         ? 'Point spreads and totals used are automatically calculated at publication time, which may differ from available betting lines.'
@@ -219,7 +225,7 @@ function renderArchivesIndex(issues) {
     const seasons = [...new Set(issues.filter(issue => issue.archived).map(issue => issue.season))].sort((a, b) => b - a);
     const links = seasons.map(season => `<li><a href="${season}/index.html">${season}&ndash;${String(season + 1).slice(-2)} season</a></li>`).join('\n');
     const classic = [2017, 2016, 2015, 2014, 2013, 2012, 2011].map(year => `<li><a href="${year}/index.html">${year} classic issues</a></li>`).join('\n');
-    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>NBA archives</title><link rel="stylesheet" href="../nba.css"></head><body><main class="page"><header class="header"><p><a href="../index.html">Home</a> &middot; <a href="../NBATMP.htm">Today's projections</a> &middot; <a href="../disclaimer.html">Disclaimer</a></p><div class="header-art-layout"><div><p class="eyebrow">The NBA Edge</p><h1>NBA archives</h1><p>Explore completed daily issues and a selection from the classic NBA Edge.</p></div><img class="legacy-basketball" src="../images/legacy-basketball.svg" alt=""></div></header><section class="game-card archive-list"><h2>Season archives</h2>${links ? `<ul>${links}</ul>` : '<p>No completed daily issues yet.</p>'}</section><section class="game-card archive-list"><h2>Classic NBA Edge</h2><p>Explore preserved historical issues and season records. Historical projections and results are presented as published and do not represent current performance.</p><ul>${classic}</ul></section><div class="sponsor-stack">${renderNflPromo('../')}</div></main></body></html>\n`;
+    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>NBA archives</title><link rel="stylesheet" href="../nba.css"></head><body><main class="page"><header class="header"><p><a href="../index.html">Home</a> &middot; <a href="../NBATMP.htm">Today's projections</a> &middot; <a href="../disclaimer.html">Disclaimer</a></p><div class="header-art-layout"><div><p class="eyebrow">The NBA Edge</p><h1>NBA archives</h1><p>Explore completed daily issues and a selection from the classic NBA Edge.</p></div><img class="legacy-basketball" src="../images/legacy-basketball.svg" alt=""></div></header><section class="game-card archive-list"><h2>Season archives</h2>${links ? `<ul>${links}</ul>` : '<p>No completed daily issues yet.</p>'}</section><section class="game-card archive-list"><h2>Classic NBA Edge</h2><p>Step inside the NBA Edge vault from yesteryear and check out our PAST ISSUES with our historical NBA predictions, ATS selections, betting analysis, and game projections powered by our proprietary forecasting formula. Revisit the archived issues that helped establish NBA Edge as one of the Internet's premier sources for free NBA winners, ATS picks, and professional basketball forecasting.</p><ul>${classic}</ul><p class="archive-note">Classic issues featured manually curated weekly selections based on the PanaGeoTech projection formula. The &ldquo;Three Ball&rdquo; was a hypothetical combination of bets on selected games. Past performance does not imply future results.</p></section><div class="sponsor-stack">${renderNflPromo('../')}</div></main></body></html>\n`;
 }
 
 function writeAtomic(file, content) {

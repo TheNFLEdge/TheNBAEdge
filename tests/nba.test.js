@@ -124,7 +124,7 @@ test('partial slates skip the odds lookup; an entirely missing slate uses a nonb
     await assert.rejects(data.mergeOdds(missing, 'key'), /not an array/);
 });
 
-test('issue template intersperses all five ads and resolves artwork for current and archived issues', () => {
+test('issue template resolves sponsor artwork for current and archived issues', () => {
     const root = path.join(__dirname, '..');
     const template = fs.readFileSync(path.join(root, 'nba-template.htm'), 'utf8');
     const game = {
@@ -137,7 +137,7 @@ test('issue template intersperses all five ads and resolves artwork for current 
         assert.match(html, /Liberty Mutual advertisement/);
         assert.match(html, /PRO Properties Group advertisement/);
         assert.match(html, /Greggy Feesh and the Phlops advertisement/);
-        assert.match(html, /PanaGeoTech promotion/);
+        assert.doesNotMatch(html, /PanaGeoTech promotion/);
         assert.match(html, /The NFL Edge promotion/);
         assert.ok(html.includes(`src="${prefix}images/banner.jpg"`));
         assert.ok(html.includes(`src="${prefix}images/gfish-promo-ad.jpg"`));
@@ -160,21 +160,44 @@ test('ads are distributed between game cards for varying slate sizes', () => {
     for (const count of [1, 2, 3, 5, 10, 11, 12, 13, 15]) {
         const games = Array.from({ length: count }, (_, index) => ({ ...game, id: String(index + 1) }));
         const html = publish.renderIssue(template, { date: '2026-11-15', number: 1, season: 2026, games });
-        const items = [...html.matchAll(/class="game-card" data-game-id="(\d+)"|class="sponsor sponsor-(liberty|property|feesh|panageotech|nfl)"/g)]
+        const items = [...html.matchAll(/class="game-card" data-game-id="(\d+)"|class="sponsor sponsor-(liberty|property|feesh|panageotech|nfl)\b/g)]
             .map(match => match[1] ? `game-${match[1]}` : match[2]);
         assert.deepEqual(items.filter(item => item.startsWith('game-')), games.map(item => `game-${item.id}`));
-        assert.deepEqual(items.filter(item => !item.startsWith('game-')), ['liberty', 'property', 'feesh', 'panageotech', 'nfl']);
+        const sponsors = count > 12 ? ['liberty', 'property', 'feesh', 'nfl', 'panageotech'] : ['liberty', 'property', 'feesh', 'nfl'];
+        assert.deepEqual(items.filter(item => !item.startsWith('game-')), sponsors);
         assert.equal(items[0], 'game-1');
-        assert.equal(items.at(-1), 'nfl');
+        assert.equal(items.at(-1), count > 12 ? 'panageotech' : 'nfl');
         if (count === 2) assert.equal(items[1], 'liberty');
-        if (count === 10) {
-            assert.deepEqual(items.map((item, index) => !item.startsWith('game-') ? index : -1).filter(index => index >= 0), [2, 5, 8, 11, 14]);
+        if (count > 12) {
+            assert.match(html, /<footer class="site-footer">[\s\S]*class="sponsor sponsor-panageotech footer-promo"/);
+            assert.doesNotMatch(html, /Explore PanaGeoTech|href="https:\/\/www\.panageotech\.com\/"/);
         }
         assert.doesNotMatch(html, /SPONSOR-(DEFINITIONS|START|END)/);
+        assert.doesNotMatch(html, /PGTX-PLACEHOLDER/);
     }
     assert.throws(() => publish.renderIssue(template.replace('<!-- SPONSOR-END -->', ''), {
         date: '2026-11-15', number: 1, season: 2026, games: [game]
     }), /Invalid NBA sponsor/);
+    assert.throws(() => publish.renderIssue(template.replace('<!-- PGTX-PLACEHOLDER-END -->', ''), {
+        date: '2026-11-15', number: 1, season: 2026, games: [game]
+    }), /Invalid PanaGeoTech placeholder/);
+});
+
+test('captured five-sponsor templates keep their original placement', () => {
+    const template = fs.readFileSync(path.join(__dirname, '..', 'nba-template.htm'), 'utf8')
+        .replace(/<!-- SPONSOR-START -->\s*{{NFL_AD_CONTENT}}/,
+            '<!-- SPONSOR-START -->\n                <article class="sponsor sponsor-panageotech">Old PanaGeoTech ad</article>\n                <!-- SPONSOR-END -->\n                <!-- SPONSOR-START -->\n                {{NFL_AD_CONTENT}}')
+        .replace(/<!-- PGTX-PLACEHOLDER-START -->[\s\S]*?<!-- PGTX-PLACEHOLDER-END -->/, '');
+    const game = {
+        away: { name: 'Away', abbreviation: 'A' }, home: { name: 'Home', abbreviation: 'H' },
+        odds: { spread: null, total: null }, projection: null, final: null
+    };
+    const games = Array.from({ length: 10 }, (_, index) => ({ ...game, id: String(index + 1) }));
+    const html = publish.renderIssue(template, { date: '2026-11-15', number: 1, season: 2026, games });
+    const items = [...html.matchAll(/class="game-card" data-game-id="(\d+)"|class="sponsor sponsor-(liberty|property|feesh|panageotech|nfl)\b/g)]
+        .map(match => match[1] ? `game-${match[1]}` : match[2]);
+    assert.deepEqual(items.filter(item => !item.startsWith('game-')), ['liberty', 'property', 'feesh', 'panageotech', 'nfl']);
+    assert.deepEqual(items.map((item, index) => !item.startsWith('game-') ? index : -1).filter(index => index >= 0), [2, 5, 8, 11, 14]);
 });
 
 test('legacy issue templates retain their original sponsor layout', () => {
@@ -298,7 +321,7 @@ test('public issue and season records use the displayed comparison spread only',
     const index = publish.renderSeasonIndex(2026, [issue]);
     assert.match(index, /<table class="season-table"><thead><tr>/);
     assert.match(index, /<th>Against<br>the&nbsp;spread<\/th>/);
-    assert.match(index, /Issue 1\)<\/a><\/td><td>1-0-0\?<\/td><td><\/td><td>1-0-0\?<\/td>/);
+    assert.match(index, /Issue 1\)<\/a><\/td><td>1-0-0<\/td><td><\/td><td>1-0-0<\/td>/);
     assert.doesNotMatch(index, /favorable|original|hypothetical/i);
 });
 
@@ -540,6 +563,8 @@ test('generated archive index preserves local classic season links', () => {
         assert.match(fs.readFileSync(path.join(root, 'archives', ...href.split('/')), 'utf8'), /src="\.\.\/\.\.\/images\/nfl-edge-banner\.gif"/);
     }
     assert.match(html, /href="\.\.\/disclaimer\.html"/);
+    assert.match(html, /class="archive-note">Classic issues featured manually curated weekly selections/);
+    assert.match(html, /Three Ball[\s\S]*hypothetical combination of bets[\s\S]*Past performance does not imply future results/);
     assert.match(require('../tools/build-classic-archives').seasonIndex('2013', []), /href="\.\.\/\.\.\/disclaimer\.html"/);
     assert.equal(fs.readFileSync(path.join(root, 'archives', 'index.html'), 'utf8'),
         publish.renderArchivesIndex(daily.readState(root).issues));
@@ -558,21 +583,35 @@ test('season archive and disclaimer display their decorative artwork', () => {
     assert.match(fs.readFileSync(path.join(root, 'disclaimer.html'), 'utf8'), /src="images\/disclaimer-official\.png" alt=""/);
 });
 
-test('record summaries cite the original tables and distinguish pilot results', () => {
+test('classic archive summaries highlight recovered records and curated picks', () => {
     const root = path.join(__dirname, '..');
     const table = fs.readFileSync(path.join(root, 'archives', '2015', 'nba15-arch.xhtml.html'), 'utf8');
     assert.match(table, /<p>A\.T\.S:<\/p><\/td><td><p>12<\/p><\/td><td><p>1<\/p><\/td><td><p>92\.31%<\/p>/);
-    const alternate = fs.readFileSync(path.join(root, 'archives', '2015', 'nba15-03b.htm'), 'utf8');
-    assert.match(alternate, /Akron at Buffalo/);
-    const linked = fs.readFileSync(path.join(root, 'archives', '2015', 'nba15-03.htm'), 'utf8');
-    assert.match(linked, /THE NBA EDGE: 2016/);
     const index = fs.readFileSync(path.join(root, 'archives', '2015', 'index.html'), 'utf8');
-    assert.match(index, /12&ndash;1 ATS \(92\.31%\)/);
-    assert.match(index, /not an independently verified NBA-only record/);
+    assert.match(index, /92\.31% against the spread/);
+    assert.doesNotMatch(index, /independently|issue #3|across four issues/i);
+    const classic = require('../tools/build-classic-archives');
+    for (const year of ['2011', '2012', '2013', '2014', '2015', '2016', '2017']) {
+        const html = fs.readFileSync(path.join(root, 'archives', year, 'index.html'), 'utf8');
+        const sources = [...html.matchAll(/<li><a href="([^"]+)">([^<]+)<\/a><\/li>/g)]
+            .map(match => ({ year, name: match[2], outputName: decodeURI(match[1]) }));
+        assert.equal(html, classic.seasonIndex(year, sources), year);
+        if (['2011', '2012'].includes(year)) assert.match(html, /Wayback Machine snapshots/);
+        if (['2013', '2014', '2015', '2016'].includes(year)) {
+            assert.match(html, /curated from computer projections/);
+            assert.doesNotMatch(html, /independently|different totals|do not match/i);
+        }
+        if (year === '2013') assert.match(html, /77\.08% winners/);
+        if (year === '2014') assert.match(html, /83\.33% against the spread/);
+        if (year === '2015' || year === '2016') assert.match(html, /NCAA basketball/);
+        if (year === '2016') assert.match(html, /90\.48% winners and 85\.71% against the spread/);
+        if (year === '2017') assert.match(html, /2017 issues we were able to recover/);
+    }
     const hero = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     assert.match(hero, /92\.31%/);
     assert.match(hero, /class="hero-copy">Get the edge on today's NBA games/);
-    assert.match(hero, /<h2>92\.31%[\s\S]*?92\.31% in the 2015 season/);
+    assert.match(hero, /<h2>92\.31%[\s\S]*?92\.31% in the <a href="archives\/2015\/index\.html">2015 season<\/a>/);
+    assert.match(hero, /<a class="text-link" href="archives\/index\.html">Explore the archives &rarr;<\/a>/);
     assert.match(hero, /href="about\.html"/);
     const about = fs.readFileSync(path.join(root, 'about.html'), 'utf8');
     assert.match(about, /Chris &ldquo;Green Bomber&rdquo; Campbell/);
@@ -663,14 +702,14 @@ test('favorable whole-point spreads follow the projected ATS side, or winner on 
     assert.equal(publish.adjustedSpread(game), null);
 });
 
-test('season records distinguish fallback, configured and unknown issue settings', () => {
+test('season records do not show model-source markers', () => {
     const game = { projection: { away: 100, home: 110 }, final: { away: 105, home: 110 }, odds: { spread: -5, total: 215 } };
     const issue = (number, source) => ({ season: 2026, number, date: `2026-11-${14 + number}`, archived: true, games: [game], model_source: source });
     const html = publish.renderSeasonIndex(2026, [issue(1, 'fallback'), issue(2, 'configured'), issue(3)]);
-    assert.match(html, /Issue 1\)<\/a><\/td><td>1-0-0\*<\/td>/);
+    assert.match(html, /Issue 1\)<\/a><\/td><td>1-0-0<\/td>/);
     assert.match(html, /Issue 2\)<\/a><\/td><td>1-0-0<\/td>/);
-    assert.match(html, /Issue 3\)<\/a><\/td><td>1-0-0\?<\/td>/);
-    assert.match(html, /Season total<\/th><th>3-0-0\*\?<\/th>/);
+    assert.match(html, /Issue 3\)<\/a><\/td><td>1-0-0<\/td>/);
+    assert.match(html, /Season total<\/th><th>3-0-0<\/th>/);
     assert.doesNotMatch(html, /fallback model settings|Model settings were not recorded/);
     const configuredOnly = publish.renderSeasonIndex(2026, [issue(2, 'configured')]);
     assert.doesNotMatch(configuredOnly, /fallback model settings|Model settings were not recorded/);
@@ -786,7 +825,7 @@ test('daily rotation is idempotent and archives postponed games independently', 
     const index = fs.readFileSync(path.join(root, 'archives', '2026', 'index.html'), 'utf8');
     assert.match(index, /nba26-001\.html/);
     assert.match(index, /nba26-002\.html/);
-    assert.match(index, /Season total<\/th><th>[^<]*\*/);
+    assert.doesNotMatch(index, /Season total<\/th><th>[^<]*\*/);
     assert.doesNotMatch(index, /fallback model settings/);
     fs.appendFileSync(path.join(root, 'nba26-001.html'), 'tampering');
     assert.throws(() => daily.readState(root), /checksum mismatch/);

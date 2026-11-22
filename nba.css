@@ -77,6 +77,7 @@ h2 { line-height: 1.2; }
 .sponsor-nfl .nfl-logo { display: block; width: min(100%, 350px); height: auto; }
 .sponsor-nfl a, .sponsor-panageotech a { color: #ffdd55; }
 .sponsor-panageotech .sponsor-logo { object-fit: contain; }
+.footer-promo { margin-bottom: 24px; }
 .footer-logo { display: inline-block; width: 24px; height: 24px; margin-left: 6px; object-fit: contain; vertical-align: middle; }
 .site-footer { padding: 32px 0; background: #03070c; border-top: 1px solid var(--border); color: #bfd0df; font-size: 14px; }
 .site-footer span { float: right; }
@@ -94,7 +95,7 @@ h2 { line-height: 1.2; }
 .game-card { padding: 22px; }
 .game-card h2 { margin: 0 0 6px; color: #e9f6ff; font-size: 24px; }
 .result-win { color: #6de8a3; }
-.result-legend { margin: 14px 0 0; color: var(--muted); font-size: 13px; }
+.result-legend, .archive-note { margin: 14px 0 0; color: var(--muted); font-size: 13px; }
 .line { color: #92d3ff; font: 700 14px/1.4 Arial, sans-serif; }
 table { width: 100%; border-collapse: collapse; font-size: 16px; }
 td, th { padding: 10px 8px; border-top: 1px solid #35516c; text-align: left; }
