@@ -2941,7 +2941,10 @@
             "total": 237.5,
             "source": "DraftKings"
           },
-          "final": null,
+          "final": {
+            "away": 104,
+            "home": 111
+          },
           "projection": {
             "away": 139,
             "home": 125
@@ -2993,7 +2996,10 @@
             "total": 219.5,
             "source": "DraftKings"
           },
-          "final": null,
+          "final": {
+            "away": 107,
+            "home": 105
+          },
           "projection": {
             "away": 120,
             "home": 95
@@ -3045,7 +3051,10 @@
             "total": 216.5,
             "source": "DraftKings"
           },
-          "final": null,
+          "final": {
+            "away": 102,
+            "home": 121
+          },
           "projection": {
             "away": 111,
             "home": 123
@@ -3097,7 +3106,10 @@
             "total": 222.5,
             "source": "DraftKings"
           },
-          "final": null,
+          "final": {
+            "away": 113,
+            "home": 106
+          },
           "projection": {
             "away": 121,
             "home": 102
@@ -3149,7 +3161,10 @@
             "total": 227.5,
             "source": "DraftKings"
           },
-          "final": null,
+          "final": {
+            "away": 97,
+            "home": 115
+          },
           "projection": {
             "away": 91,
             "home": 122
@@ -3201,7 +3216,10 @@
             "total": 234.5,
             "source": "DraftKings"
           },
-          "final": null,
+          "final": {
+            "away": 104,
+            "home": 97
+          },
           "projection": {
             "away": 102,
             "home": 117
@@ -3253,7 +3271,10 @@
             "total": 223.5,
             "source": "DraftKings"
           },
-          "final": null,
+          "final": {
+            "away": 104,
+            "home": 116
+          },
           "projection": {
             "away": 129,
             "home": 113
@@ -3305,7 +3326,10 @@
             "total": 216.5,
             "source": "DraftKings"
           },
-          "final": null,
+          "final": {
+            "away": 110,
+            "home": 129
+          },
           "projection": {
             "away": 99,
             "home": 95
@@ -3357,17 +3381,21 @@
             "total": 225.5,
             "source": "DraftKings"
           },
-          "final": null,
+          "final": {
+            "away": 111,
+            "home": 116
+          },
           "projection": {
             "away": 114,
             "home": 109
           }
         }
       ],
-      "archived": false,
+      "archived": true,
       "template": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n    <meta charset=\"utf-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n    <title>The NBA Edge | {{DATE}} projections</title>\n    <link rel=\"stylesheet\" href=\"{{ROOT}}nba.css\">\n    <script src=\"{{ROOT}}nba-viewport.js\" data-date=\"{{DATE}}\" data-fallback=\"{{ROOT}}nba-unavailable.html\"></script>\n</head>\n<body>\n    <a class=\"skip-link\" href=\"#main\">Skip to content</a>\n    <header class=\"site-bar\">\n        <nav class=\"site-bar-inner\" aria-label=\"Main navigation\">\n            <a class=\"brand\" href=\"{{ROOT}}index.html\">THE NBA <span>EDGE</span><small>Powered by PanaGeoTech</small></a>\n            <div class=\"nav-links\"><a href=\"{{ROOT}}archives/index.html\">Archives</a><a href=\"{{ROOT}}about.html\">About</a><a href=\"{{ROOT}}disclaimer.html\">Disclaimer</a><a class=\"nav-cta\" href=\"{{ROOT}}NBATMP.htm\">Today's projections</a></div>\n        </nav>\n    </header>\n    <main class=\"page\" id=\"main\">\n        <noscript><p class=\"game-card\">Please check the issue date below: automatic detection of an outdated issue requires JavaScript. <a href=\"{{ROOT}}archives/index.html\">Explore the archives</a>.</p></noscript>\n        <a href=\"{{ROOT}}NBATMP.htm\"><img class=\"issue-banner\" src=\"{{ROOT}}images/banner.jpg\" alt=\"Get the NBA Edge: current issue\"></a>\n        <header class=\"header\">\n            <p class=\"eyebrow\">{{ISSUE}}</p>\n            <h1>{{DATE}} Picks</h1>\n            <p class=\"intro\">Computer-generated NBA score projections from Greggy the Greek's PanaGeoTech formula.</p>\n            <p>Game dates are Eastern Time. Games without a point spread or total may be excluded from the relevant records. All point spreads quoted and used on these pages are subject to change and may differ from available betting lines. Neither The NBA Edge nor PanaGeoTech warrants the accuracy of this information. For entertainment purposes only.</p>\n        </header>\n        <section class=\"game-list\" aria-label=\"NBA projections\">\n            <!-- MATCHUP-WORDING-V2 --><!-- GAME-CARDS -->\n        </section>\n        <!-- SPONSOR-DEFINITIONS-START -->\n        <template>\n                <!-- SPONSOR-START -->\n                <article class=\"sponsor sponsor-liberty\" aria-label=\"Liberty Mutual advertisement\">\n                    <div class=\"sponsor-row\"><img class=\"sponsor-logo liberty-logo\" src=\"https://blogger.googleusercontent.com/img/a/AVvXsEhJW-A8S78eGMtpVFkeRci_bw-7VWlCoeciRZcJUMWjB5DtjShq5VkTHQlfviT-NDUGojGsGqKbT8zLU4t3oS4JQoMVNmz-APnV0M1wqcPtuF2iaM8FstJqH6miChLR22EFbW1-SqAQ4n79OK1KSedBJ4Xi4AKF46QX8cfArNfGwKf5aMUxoKuOYG68SYc\" alt=\"Liberty Mutual\" loading=\"lazy\"><div><p class=\"sponsor-label\">Advertisement</p><h3>Save on insurance with Liberty Mutual</h3><p>Explore <a href=\"https://www.libertymutual.com/gregpanagiotatos-fl-445190?selectedOpt=auto_home\" target=\"_blank\" rel=\"noopener noreferrer\">customized coverage (opens in a new tab)</a> that fits your budget.</p><p>Call a licensed insurance agent at <strong>800-266-0644</strong> and mention client number <strong>445190</strong>.</p></div></div>\n                </article>\n                <!-- SPONSOR-END -->\n                <!-- SPONSOR-START -->\n                <article class=\"sponsor sponsor-property\" aria-label=\"PRO Properties Group advertisement\">\n                    <div class=\"sponsor-row\"><img class=\"sponsor-logo property-logo\" src=\"https://propropertylist.com/chw/images/PROProps.jpg\" alt=\"PRO Properties Group\" loading=\"lazy\"><div><p class=\"sponsor-label\">Advertisement</p><h3>Own the Property. <span>Not the Headaches.</span></h3><p>Property management done right, done simply. Leave the hassles to the pros at PRO Properties Group.</p><a class=\"sponsor-button\" href=\"https://propropertylist.com/chw/\" target=\"_blank\" rel=\"noopener noreferrer\">Get My Free Property Review &rarr; (opens in a new tab)</a></div></div>\n                </article>\n                <!-- SPONSOR-END -->\n                <!-- SPONSOR-START -->\n                <article class=\"sponsor sponsor-feesh\" aria-label=\"Greggy Feesh and the Phlops advertisement\" {{FEESH_AD_ARTICLE_STYLE}}>\n                    {{FEESH_AD_CONTENT}}\n                </article>\n                <!-- SPONSOR-END -->\n                <!-- SPONSOR-START -->\n                {{NFL_AD_CONTENT}}\n                <!-- SPONSOR-END -->\n        </template>\n        <!-- SPONSOR-DEFINITIONS-END -->\n    </main>\n    <footer class=\"site-footer\"><div class=\"portal-container\"><!-- PGTX-PLACEHOLDER-START --><article class=\"sponsor sponsor-panageotech footer-promo\" aria-label=\"PanaGeoTech promotion\"><div class=\"sponsor-row\"><img class=\"sponsor-logo\" src=\"{{ROOT}}images/panageotech-logo.jpg\" alt=\"PanaGeoTech\" loading=\"lazy\"><div><h3>Powered by PanaGeoTech</h3><p>Technology solutions and the formula behind Greggy the Greek's NBA and NFL Edge projections.</p></div></div></article><!-- PGTX-PLACEHOLDER-END --><strong>The NBA Edge</strong> &nbsp;|&nbsp; Powered by PanaGeoTech <img class=\"footer-logo\" src=\"{{ROOT}}images/panageotech-logo.jpg\" alt=\"\"> <span><a href=\"{{ROOT}}index.html\">Home</a> &middot; <a href=\"{{ROOT}}archives/index.html\">Archives</a> &middot; <a href=\"{{ROOT}}about.html\">About</a> &middot; <a href=\"{{ROOT}}disclaimer.html\">Disclaimer</a></span><p>For entertainment and informational purposes only.</p></div></footer>\n</body>\n</html>\n",
       "model_source": "configured",
-      "canonical_hash": "ff05b55c9f27040db258c1fb86949349a91cc510fb519d6fa5c941116f18efd1"
+      "canonical_hash": "ff05b55c9f27040db258c1fb86949349a91cc510fb519d6fa5c941116f18efd1",
+      "archive_hash": "86a766708cce442e1b7ef71b54d10e9a0f65d5e0e17d888a4f74c55fb2757844"
     }
   ]
 }
